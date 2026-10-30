@@ -5,6 +5,10 @@ kullanım kılavuzudur. Ayrıntılı ve güncel İngilizce bilgi için
 [README.md](README.md) dosyasına ve projenin
 [Wiki sayfasına](https://github.com/armel/uv-k1-k5v3-firmware-custom/wiki) bakın.
 
+> [!TIP]
+> Amatör telsizciliğe ve bu cihaza yeni başlıyorsanız önce
+> [Temel Kavramlar ve Başlangıç Rehberi](TEMEL_KAVRAMLAR_TR.md)'ni okuyun.
+
 > [!WARNING]
 > Bu firmware'i tamamen kendi sorumluluğunuzda kullanın. Telsizinizde çalışacağına
 > dair hiçbir garanti yoktur; hatalı bir yükleme cihazı kullanılamaz hâle getirebilir.
