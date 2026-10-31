@@ -1,17 +1,17 @@
-# F4HWN Fusion Firmware — Türkçe Kullanım Kılavuzu
+# F4HWN Firmware: Türkçe Hızlı Başvuru Kılavuzu
 
-UV-K1 ve UV-K5 V3 (PY32F071 MCU) telsizleri için F4HWN özel firmware'inin Türkçe
-kullanım kılavuzudur. Ayrıntılı ve güncel İngilizce bilgi için
-[README.md](README.md) dosyasına ve projenin
-[Wiki sayfasına](https://github.com/armel/uv-k1-k5v3-firmware-custom/wiki) bakın.
+UV-K1 ve UV-K5 V3 (PY32F071 MCU) telsizleri için F4HWN özel firmware'inin Türkçe hızlı
+başvuru kılavuzu. Bu sayfa en sık gereken bilgileri bir arada verir.
 
 > [!TIP]
-> Amatör telsizciliğe ve bu cihaza yeni başlıyorsanız önce
-> [Temel Kavramlar ve Başlangıç Rehberi](TEMEL_KAVRAMLAR_TR.md)'ni okuyun.
+> **Ayrıntılı Türkçe rehber**: [kilavuz/](kilavuz/README.md). Elektrik ve radyo temelleri,
+> desibel ve S-metre, modülasyon, antenler, amatör telsizcilik, frekans rehberi, donanım
+> ve ekran simgeleri, adım adım kullanım, menü referansı, uygulamalar, senaryolar, sözlük ve
+> sorun giderme bölümlerinden oluşur.
 
 > [!WARNING]
-> Bu firmware'i tamamen kendi sorumluluğunuzda kullanın. Telsizinizde çalışacağına
-> dair hiçbir garanti yoktur; hatalı bir yükleme cihazı kullanılamaz hâle getirebilir.
+> Bu firmware'i tamamen kendi sorumluluğunuzda kullanın. Telsizinizde çalışacağına dair
+> hiçbir garanti yoktur. Amatör bantlarda gönderim için **BTK belgesi** gerekir.
 
 > [!CAUTION]
 > Firmware'i yükledikten hemen sonra kalibrasyon verilerinizi
@@ -19,466 +19,258 @@ kullanım kılavuzudur. Ayrıntılı ve güncel İngilizce bilgi için
 
 ## İçindekiler
 
-1. [Sürümler (Edition)](#1-sürümler-edition)
-2. [Firmware yükleme](#2-firmware-yükleme)
-3. [Kalibrasyon yedekleme ve geri yükleme](#3-kalibrasyon-yedekleme-ve-geri-yükleme)
+1. [Sürümler](#1-sürümler)
+2. [Firmware yükleme ve kalibrasyon](#2-firmware-yükleme-ve-kalibrasyon)
+3. [Başlangıç ayarları](#3-başlangıç-ayarları)
 4. [Açılış tuş kombinasyonları](#4-açılış-tuş-kombinasyonları)
-5. [Temel kullanım ve tuşlar](#5-temel-kullanım-ve-tuşlar)
-6. [F tuşu kısayolları](#6-f-tuşu-kısayolları)
-7. [Menü sistemi](#7-menü-sistemi)
-8. [Menü öğeleri](#8-menü-öğeleri)
-9. [Çıkış gücü seviyeleri](#9-çıkış-gücü-seviyeleri)
-10. [Tarama (Scan)](#10-tarama-scan)
-11. [Full Watch (çoklu dinleme)](#11-full-watch-çoklu-dinleme)
-12. [Multiboot ve Multiconfig](#12-multiboot-ve-multiconfig)
-13. [Overlay uygulamaları ve APRS](#13-overlay-uygulamaları-ve-aprs)
-14. [Fox Hunt ve Beacon](#14-fox-hunt-ve-beacon)
-15. [RF Log](#15-rf-log)
-16. [AirCopy ve kablo ile kopyalama](#16-aircopy-ve-kablo-ile-kopyalama)
-17. [UV Studio ve K5Viewer](#17-uv-studio-ve-k5viewer)
-18. [CHIRP](#18-chirp)
-19. [Kaynaktan derleme](#19-kaynaktan-derleme)
-20. [Sık karşılaşılan durumlar](#20-sık-karşılaşılan-durumlar)
+5. [Tuşlar](#5-tuşlar)
+6. [F kısayolları ve uzun basışlar](#6-f-kısayolları-ve-uzun-basışlar)
+7. [Menü](#7-menü)
+8. [Çıkış gücü](#8-çıkış-gücü)
+9. [Tarama](#9-tarama)
+10. [Alım modları ve Full Watch](#10-alım-modları-ve-full-watch)
+11. [Multiboot ve Multiconfig](#11-multiboot-ve-multiconfig)
+12. [Uygulamalar (Labs)](#12-uygulamalar-labs)
+13. [RF Log, Fox Hunt, Beacon, BEAM, AirCopy](#13-rf-log-fox-hunt-beacon-beam-aircopy)
+14. [UV Studio, K5Viewer ve CHIRP](#14-uv-studio-k5viewer-ve-chirp)
+15. [Kaynaktan derleme](#15-kaynaktan-derleme)
+16. [Sık karşılaşılan durumlar](#16-sık-karşılaşılan-durumlar)
 
 ---
 
-## 1. Sürümler (Edition)
+## 1. Sürümler
 
-| Sürüm | Açıklama |
-|-------|----------|
-| **Fusion** | Günlük kullanım için genel referans sürüm. Spektrum analizörü, FM radyo, VOX, UV Studio / K5Viewer, RF Log, Full Watch, Multiboot, Multiconfig ve overlay uygulama platformunu içerir. |
-| **Service** | Fusion'a ek olarak AirCopy, BEAM ve harici Flash servis işlemlerini içerir. |
-| **Custom** | Gizli teknik varsayılan ayarlara dayanan, elle yapılandırılan derleme. |
+| Sürüm | İçerik |
+|-------|--------|
+| **Fusion** | Temel sürüm: spektrum analizörü, FM radyo, VOX, Full Watch, Multiboot, Multiconfig, RF Log, menü kategorileri, ekran koruyucu |
+| **FieldOps** | Fusion + Rescue Ops (menü kilidi) + yerleşik Fox Hunt ve Beacon |
+| **Transfer** | Fusion + AirCopy (kablosuz, kablolu, `Flash 2M`) + BEAM |
+| **Labs** | Fusion + **overlay uygulamaları** (APRS, AIS, ACARS, sondalar, CW, SSTV, Fox Hunt, Beacon, BEAM, oyunlar…) + AirCopy + Rescue Ops |
 
-> [!NOTE]
-> Fusion sürümünde DTMF çağrı ve scrambler (ses karıştırıcı) özellikleri kapalıdır.
+Fusion ve türevlerinde DTMF çağrı ve scrambler özellikleri kapalıdır.
+Ayrıntı: [kilavuz/08 §8.1](kilavuz/08-cihaz-donanimi-ve-ekran.md#81-firmware-sürümleri-edition).
 
-## 2. Firmware yükleme
+## 2. Firmware yükleme ve kalibrasyon
 
-Firmware, tarayıcı üzerinden [UV Studio](https://armel.github.io/uvstudio/) ile
-yüklenir. Kurulum, sunucu veya hesap gerekmez. Web Serial destekli bir masaüstü
-tarayıcı kullanın (Chrome, Brave, Edge, Opera veya Firefox 151+).
+Firmware tarayıcıdan, [UV Studio](https://armel.github.io/uvstudio/) ile yüklenir. Web Serial
+destekli bir masaüstü tarayıcı kullanın (Chrome, Brave, Edge, Opera veya Firefox 151+).
 
-1. UV Studio'da [Flash Firmware](https://armel.github.io/uvstudio/#flash) sayfasını açın.
-2. Telsizi uyumlu bir programlama kablosuyla (USB-C veya Baofeng/Kenwood tipi çift
-   jaklı USB kablo) bilgisayara bağlayın.
+**Yükleme**
+
+1. [Flash Firmware](https://armel.github.io/uvstudio/#flash) sayfasını açın.
+2. Telsizi USB-C veya Kenwood tipi çift jaklı programlama kablosuyla bağlayın.
 3. Telsizi **DFU (flash) moduna** alın.
-4. Katalogdan resmi bir F4HWN Fusion sürümü seçin veya yerel bir `.bin` dosyası yükleyin.
-5. `Flash Firmware` düğmesine tıklayın ve telsize ait seri portu seçin.
-6. İlerleme çubuğu tamamlanınca telsiz yeni firmware ile yeniden başlar.
+4. Katalogdan bir F4HWN sürümü seçin veya yerel `.bin` dosyası yükleyin.
+5. `Flash Firmware` → seri portu seçin → işlemin bitmesini bekleyin.
 
-## 3. Kalibrasyon yedekleme ve geri yükleme
+**Kalibrasyon yedeği** (telsiz **normal modda**)
 
-Kalibrasyon dosyası her telsize özeldir. F4HWN'yi kurduktan hemen sonra yedek alın;
-başka bir firmware'e ya da orijinal firmware'e dönmeden önce geri yükleyin.
+- Yedek: [Dump Calibration](https://armel.github.io/uvstudio/#dump-calib) → `Dump Calibration Data` → `Download calibration.dat`.
+- Geri yükleme: [Restore Calibration](https://armel.github.io/uvstudio/#restore-calib) → dosyayı seçin → `Restore Calibration Data`.
+- Dosyayı telsizin seri numarasıyla adlandırın. Başka bir firmware'e geçmeden önce geri yükleyin.
 
-**Yedekleme (Dump)**
+## 3. Başlangıç ayarları
 
-1. [Dump Calibration](https://armel.github.io/uvstudio/#dump-calib) sayfasını açın.
-2. Telsizi **normal modda** açın.
-3. `Dump Calibration Data` → işlem bitince `Download calibration.dat`.
+1. Telsizi **`PTT` + `SIDE1`** basılıyken açın: gizli menü öğeleri açılır.
+2. **`F Lock`**: belgeli amatör için **`CE HAM`** (144–146 / 430–440 MHz); belgesiz için **`DISABLE ALL`**.
+3. **`BatTyp`**: pilinize uygun tip.
+4. **`SetNav`**: UV-K1 için `LEFT/RIGHT`, UV-K5 için `UP/DOWN`.
+5. Squelch: `F` + `UP`/`DOWN` ile 3–4.
+6. Tuş kilidi kapsamı: `SetLck` → `KEYS PTT`. Kilitlemek/açmak için uzun `F`.
 
-> [!TIP]
-> Dosyayı telsizin seri numarasıyla adlandırın (pilin altındaki etikette yazar).
-> Birden fazla telsiziniz varsa dosyaları karıştırmazsınız.
-
-**Geri yükleme (Restore)**
-
-1. [Restore Calibration](https://armel.github.io/uvstudio/#restore-calib) sayfasını açın.
-2. Telsizi **normal modda** açın ve `calibration.dat` dosyanızı seçin.
-3. `Restore Calibration Data` düğmesine tıklayıp işlemin tamamen bitmesini bekleyin.
+> [!WARNING]
+> Varsayılan `F Lock` (`DEFAULT+`) birçok kamu ve profesyonel banda gönderime izin verir.
+> Bir kanalda `TXLock` = `OFF` yapmak ise o kanal için bölge kilidini tamamen devre dışı bırakır.
 
 ## 4. Açılış tuş kombinasyonları
 
-Telsiz kapalıyken aşağıdaki tuşları basılı tutup telsizi açın; ilgili ekran
-görününce tuşları bırakın.
+Telsiz kapalıyken tuşları basılı tutup açın; ekran gelince bırakın.
 
-| Kombinasyon | Sonuç |
-|-------------|-------|
-| `MENU` | **Multiboot** firmware seçicisi |
-| `PTT` + `SIDE1` (üst yan tuş) | Gizli (servis) menü öğeleri açılır |
-| `PTT` + `SIDE2` (alt yan tuş) | **AirCopy** modu (derlemede varsa) |
-| `PTT` + gizli tuş (`SetKey`) | Menü kilidini (Rescue Ops) açar/kapatır |
+| Kombinasyon | Sonuç | Sürüm |
+|-------------|-------|-------|
+| `MENU` | Multiboot firmware seçicisi | Hepsi |
+| `PTT` + `SIDE1` | Gizli (servis) menü öğeleri | Hepsi |
+| `PTT` + `SIDE2` | AirCopy modu | Transfer, Labs |
+| `PTT` + gizli tuş (`SetKey`, varsayılan `MENU`) | Rescue Ops menü kilidini aç/kapat | FieldOps, Labs |
 
-## 5. Temel kullanım ve tuşlar
+## 5. Tuşlar
 
-| Tuş | Görev |
-|-----|-------|
-| `PTT` | Gönderme (Classic modda basılı tutun; OnePush modda bir kez basıp bir kez daha basarak bırakın) |
-| `MENU` | Menüye giriş / seçimi onaylama |
-| `EXIT` | Geri / iptal. Uzun basış: VFO durumunu tamamen geri yükler |
-| `UP` / `DOWN` | Frekans veya kanal değiştirme, menüde gezinme |
-| `0`–`9` | Doğrudan frekans veya kanal numarası girişi |
-| `*` | Tarama (Scan) |
-| `F` (`#`) | Fonksiyon tuşu; uzun basış tuş takımını kilitler |
-| `SIDE1` / `SIDE2` | Kısa ve uzun basışa atanabilen yan tuşlar (`F1Shrt`, `F1Long`, `F2Shrt`, `F2Long`) |
+| Tuş | Kısa basış | Uzun basış |
+|-----|------------|------------|
+| `PTT` | Gönderim (`SetPTT`: `CLASSIC` basılı tut / `ONEPUSH` bas-başlat, bas-bitir) | — |
+| `MENU` | Menü / onay | `M Long` işlevi; tarama sırasında bulunan kanalı/frekansı hariç tut |
+| `EXIT` | Geri, son rakamı sil, taramayı durdurup başa dön | VFO'yu rakam girişinden önceki tam durumuna geri yükle |
+| `UP` / `DOWN` | Frekans/kanal değiştir; taramada sonraki sinyale atla | Hızlı ilerleme |
+| `0`–`9` | Frekans (6 hane, kHz) veya kanal numarası | `F` işlevi (bkz. §6) |
+| `*` | **DTMF giriş modu** | **Taramayı başlat/durdur** |
+| `F` (`#`) | Bir sonraki tuşa ikinci işlevini verir | Tuş kilidi |
+| `SIDE1` | `F1Shrt` (varsayılan `MONITOR`) | `F1Long` |
+| `SIDE2` | `F2Shrt` (varsayılan `SCAN`) | `F2Long` |
 
-**Ekran modları:** `MAIN ONLY`, `DUAL`, `FULL` ve `CROSS`. Aktif VFO'da alım
-göstergesi, susturma (squelch), monitor, adım ve CTCSS/DCS bilgileri, son alım ve
-RX/TX süre sayaçları gösterilir.
+## 6. F kısayolları ve uzun basışlar
 
-## 6. F tuşu kısayolları
+Önce `F`'ye basıp bırakın, sonra ikinci tuşa basın.
 
-Önce `F` tuşuna, ardından ilgili tuşa basın.
+| Kısayol | `F` + tuş | Uzun basış (`F`'siz) |
+|---------|-----------|----------------------|
+| `0` | FM yayın radyosu | Aynı |
+| `1` | Bant değiştir (kanal modunda: kanalı VFO'ya kopyala) | Aynı |
+| `2` | VFO A ↔ VFO B | Aynı |
+| `3` | VFO ↔ kanal (MR) modu | Aynı |
+| `4` | Frekans yakalama tarayıcısı (yakındaki vericinin frekansı ve tonu) | Aynı |
+| `5` | Spektrum analizörü | Kanal modunda: kanalın tarama listesini değiştir. VFO modunda: tarama aralığı (`ScnRng`, VFO A–B arası) |
+| `6` | Çıkış gücünü değiştir | Aynı |
+| `7` | **Labs**: uygulama menüsü. Diğer sürümler: VOX | VOX aç/kapat |
+| `8` | Arka ışığı geçici olarak min ↔ maks | Ters frekans (reverse) |
+| `9` | Ayarlı arka ışık davranışına dön | `1 Call` kanalına git |
+| `*` | CTCSS/DCS ton taraması | — |
+| `UP` / `DOWN` | Squelch seviyesi (kalıcı). Taramada: tarama listesi | — |
+| `SIDE1` / `SIDE2` | Frekans adımı | `F` + uzun `SIDE1`/`SIDE2`: **aksiyon seçici** |
 
-| Kısayol | İşlev |
-|---------|-------|
-| `F` + `0` | FM yayın radyosu |
-| `F` + `1` | Bant değiştirme (kanal modunda kanalı VFO'ya kopyalar) |
-| `F` + `2` | VFO A / VFO B geçişi |
-| `F` + `3` | VFO / Hafıza (MR) modu geçişi |
-| `F` + `4` | Frekans/ton tarayıcı (Close Call) |
-| `F` + `5` | Spektrum analizörü (uzun `5`: kanalın tarama listesini değiştirir) |
-| `F` + `6` | Çıkış gücü değiştirme |
-| `F` + `7` | Overlay uygulama menüsü (uzun `7`: VOX) |
-| `F` + `8` | Arka ışığı geçici olarak min/maks arasında değiştirir (uzun `8`: frekans ters çevirme) |
-| `F` + `9` | Ayarlı arka ışık stratejisine döner (uzun `9`: 1 Call kanalı) |
-| `F` + `UP` / `DOWN` | Susturma (squelch) seviyesi — kalıcı olarak kaydedilir. Tarama sırasında tarama listesini değiştirir |
-| `F` + `SIDE1` / `SIDE2` | Frekans adımını (step) değiştirir |
+## 7. Menü
 
-## 7. Menü sistemi
+`MENU` önce kategori listesini açar:
+`Channels` · `Scan` · `Keys` · `Power` · `Display` · `Timers` · `Audio` · `Radio` · `DTMF` ·
+`Service` (yalnızca gizli menü açıkken) · `All`.
 
-`MENU` tuşuyla menüye girilir. Fusion'da menü öğeleri kategorilere ayrılmıştır:
+- `UP`/`DOWN` ile seçin, `MENU` ile girin/düzenleyin/kaydedin, `EXIT` ile geri dönün.
+- Kategori ekranında menü numarasını yazmak, `All` listesindeki o öğeye götürür.
 
-`Channels` · `Scan` · `Keys` · `Power` · `Display` · `Timers` · `Audio` ·
-`Radio` · `DTMF` · `Service` (yalnızca gizli menü açıkken) · `All`
+| Kategori | Öğeler |
+|----------|--------|
+| Channels | `Step`, `Power`, `SetPwr`, `RxDCS`, `RxCTCS`, `TxDCS`, `TxCTCS`, `TxODir`, `TxOffs`, `W/N`, `SetNFM`, `BusyCL`, `Compnd`, `Mode`, `TXLock`, `PTT ID`, `ChList`, `ChSave`, `ChDele`, `ChName`, `SetCfg` |
+| Scan | `ScList`, `ScPri`, `PriCh1`, `PriCh2`, `ScnRev`, `SetScn` |
+| Keys | `F1Shrt`, `F1Long`, `F2Shrt`, `F2Long`, `M Long`, `KeyLck`, `SetLck`, `SetKey`, `SetPTT`, `1 Call` |
+| Power | `BatSav`, `BatTxt`, `SetOff`, `SetSav` |
+| Display | `ChDisp`, `POnMsg`, `BLTime`, `BLMin`, `BLMax`, `BLTxRx`, `SetCtr`, `SetInv`, `SetMet`, `SetGUI`, `SysInf` |
+| Timers | `TxTOut`, `SetTOT`, `SetEOT`, `SetTmr` |
+| Audio | `Mic`, `MicBar`, `Beep`, `SetVol`, `SetRxA` |
+| Radio | `Sql`, `STE`, `RP STE`, `Roger`, `VOX`, `RxMode` |
+| DTMF | `UPCode`, `DWCode`, `D ST`, `D Prel`, `D Live` |
+| Service (gizli) | `F Lock`, `350 En`, `BatCal`, `BatTyp`, `SetNav`, `Reset` |
 
-- `All` kategorisi tüm öğeleri orijinal sıra ve numaralarıyla düz liste olarak gösterir.
-- `UP` / `DOWN` ile gezinin, `MENU` ile düzenleyin, tekrar `MENU` ile kaydedin,
-  `EXIT` ile iptal edin.
-- Rakam tuşlarıyla menü numarasını yazarak doğrudan öğeye gidebilirsiniz.
-- Düzenleme sırasında menü numarası ekranda görünmeye devam eder.
+Her öğenin değerleri ve açıklaması: [kilavuz/10 Menü referansı](kilavuz/10-menu-referansi.md).
 
-## 8. Menü öğeleri
+## 8. Çıkış gücü
 
-> Not: Bazı öğeler yalnızca ilgili özellik derlemede etkinse görünür.
+| Seviye | Yaklaşık güç | dBm |
+|--------|--------------|-----|
+| `LOW 1` | < 20 mW | < 13 |
+| `LOW 2` | 125 mW | 21 |
+| `LOW 3` | 250 mW | 24 |
+| `LOW 4` | 500 mW | 27 |
+| `LOW 5` | 1 W | 30 |
+| `MID` | 2 W | 33 |
+| `HIGH` | 5 W | 37 |
+| `USER` | `SetPwr` ile seçilir | — |
 
-### Kanal / VFO ayarları
+S-metre IARU Bölge 1 ölçeğindedir: **S9 = −93 dBm**, her S birimi 6 dB.
 
-| Menü | Açıklama |
-|------|----------|
-| `Step` | Frekans adımı |
-| `Power` | Çıkış gücü (`USER`, `LOW 1`–`LOW 5`, `MID`, `HIGH`) |
-| `RxDCS` / `RxCTCS` | Alım DCS / CTCSS tonu (`*` ile ton taraması) |
-| `TxDCS` / `TxCTCS` | Gönderme DCS / CTCSS tonu |
-| `TxODir` | Röle kayma yönü (`OFF`, `+`, `-`) |
-| `TxOffs` | Röle kayma (offset) miktarı |
-| `W/N` | Geniş / dar bant (`WIDE`, `NARROW`) |
-| `BusyCL` | Meşgul kanal kilidi |
-| `Compnd` | Compander |
-| `Mode` | Demodülasyon (FM / AM / USB) |
-| `TXLock` | Kanal bazında gönderme kilidi |
+## 9. Tarama
 
-### Hafıza kanalları
+- **Başlat/durdur**: uzun `*` veya `SIDE2`. **`EXIT`**: durdur ve başa dön. **`MENU`**: bulunan sinyalde kal.
+- **Listeler**: 24 adlandırılmış liste + `ALL` + `MIX`. Kanala liste atamak için kanal modunda uzun `5`.
+- Tarama sırasında liste seçimi: `00` = `ALL`, `01`–`24`, `25` = `MIX`; veya `F` + `UP`/`DOWN`.
+- `ScList` → `MIX` → `MENU`: MIX düzenleyici (`MENU` ile listeleri ekle/çıkar, `EXIT` ile kaydet).
+- Tarama dururken **uzun `MENU`**: bulunan kanalı/frekansı taramadan çıkar (en fazla 64 frekans).
+- **Tarama aralığı**: VFO A'ya alt, VFO B'ye üst frekansı yazın, VFO modunda uzun `5`, sonra uzun `*`.
+- `SetScn` = `FAST`: saniyede ≈ 150 frekans. `ScnRev`: durma / devam davranışı.
 
-| Menü | Açıklama |
-|------|----------|
-| `ChList` | Kanal listesi |
-| `ChSave` | Geçerli ayarları kanala kaydet |
-| `ChDele` | Kanalı sil |
-| `ChName` | Kanal adı düzenleme |
+## 10. Alım modları ve Full Watch
 
-### Tarama
-
-| Menü | Açıklama |
-|------|----------|
-| `ScList` | Taranacak liste (`ALL`, `01`–`24`, `MIX`) |
-| `ScPri` | Öncelikli tarama açık/kapalı |
-| `PriCh1` / `PriCh2` | Öncelikli kanal 1 / 2 |
-| `ScnRev` | Taramanın devam etme davranışı |
-| `SetScn` | Tarama hızı (`NORMAL`, `FAST`) |
-
-### Tuşlar
-
-| Menü | Açıklama |
-|------|----------|
-| `F1Shrt` / `F1Long` | SIDE1 kısa / uzun basış işlevi |
-| `F2Shrt` / `F2Long` | SIDE2 kısa / uzun basış işlevi |
-| `M Long` | `MENU` uzun basış işlevi |
-| `KeyLck` | Otomatik tuş kilidi |
-| `SetLck` | Kilit kapsamı (`KEYS`, `KEYS ACTIONS`, `KEYS PTT`, `KEYS ACTIONS PTT`) |
-| `SetPTT` | PTT modu (`CLASSIC`, `ONEPUSH`) |
-| `SetNav` | Gezinme düzeni (`LEFT/RIGHT` UV-K1, `UP/DOWN` UV-K5) |
-| `SetKey` | Rescue Ops gizli tuşu |
-
-Atanabilir işlevler: `NONE`, `FLASHLIGHT`, `POWER`, `MONITOR`, `SCAN`, `VOX`,
-`FM RADIO`, `1750Hz`, `LOCK KEYPAD`, `VFO A/B`, `VFO/MEM`, `MODE`, `RX MODE`,
-`MAIN ONLY`, `PTT`, `WIDE/NARROW`, `MUTE`, `RxA`, `RF LOG`, `BEAM`,
-`POWER HIGH`, `REMOVE OFFSET`, `FOX HUNT`, `BEACON`, `TONE CALL`.
-
-### Ekran
-
-| Menü | Açıklama |
-|------|----------|
-| `ChDisp` | Kanal görünümü (`FREQ`, `CHANNEL NUMBER`, `NAME`, `NAME + FREQ`) |
-| `POnMsg` | Açılış ekranı (`ALL`, `SOUND`, `MESSAGE`, `VOLTAGE`, `LOGO`, `NONE`) |
-| `BLTime` | Arka ışık süresi |
-| `BLMin` / `BLMax` | Arka ışık minimum / maksimum parlaklığı |
-| `BLTxRx` | TX/RX sırasında arka ışık (`OFF`, `TX`, `RX`, `TX/RX`) |
-| `BatTxt` | Durum çubuğunda pil (`NONE`, `VOLTAGE`, `PERCENT`) |
-| `MicBar` | Mikrofon seviye çubuğu |
-| `SetCtr` | Ekran kontrastı |
-| `SetInv` | Ters (negatif) ekran |
-| `SetMet` | S-metre stili (`TINY`, `CLASSIC`) |
-| `SetGUI` | VFO bilgi düzeni |
-| `SetSav` | Ekran koruyucu (`OFF`, `LOGO`, `LOGO+`, `MATRIX`) |
-
-### Zamanlayıcılar ve güç
-
-| Menü | Açıklama |
-|------|----------|
-| `TxTOut` | Gönderme zaman aşımı (TOT) |
-| `SetTOT` | TOT uyarısı (`OFF`, `SOUND`, `VISUAL`, `ALL`) |
-| `SetEOT` | Gönderme sonu uyarısı (aynı seçenekler) |
-| `SetTmr` | RX / TX süre sayaçları |
-| `SetOff` | Otomatik derin uyku süresi |
-| `BatSav` | Pil tasarrufu |
-| `SetPwr` | `USER` güç seviyesinin değeri |
-| `BatVol` / `SysInf` | Pil ve sistem bilgisi |
-
-### Ses
-
-| Menü | Açıklama |
-|------|----------|
-| `Mic` | Mikrofon kazancı |
-| `Beep` | Tuş sesi |
-| `Roger` | Gönderme sonu sinyali (`OFF`, `ROGER`, `MDC`) |
-| `STE` / `RP STE` | Kuyruk sesi (squelch tail) bastırma / röle için |
-| `VOX` | Sesle gönderme seviyesi |
-| `SetRxA` | RX ses profili — FM: `FLAT`, `CLEAN`, `MID`, `BOOST`, `MAX`; AM: `SHARP`, `STOCK`, `OPEN` |
-| `SetVol` | RX ses seviyesi |
-
-### Radyo
-
-| Menü | Açıklama |
-|------|----------|
-| `RxMode` | Alım modu (bkz. [Full Watch](#11-full-watch-çoklu-dinleme)) |
-| `Sql` | Susturma seviyesi (0–9) |
-| `SetNFM` | Dar FM bant genişliği (`NARROW` 12,5 kHz / `NARROWER` 6,25 kHz) |
-| `SetCfg` | Başka bir Multiconfig bankasını yeniden başlatmadan uygular |
-| `1 Call` | Tek tuş çağrı kanalı |
-
-### DTMF
-
-`ANI ID`, `UPCode`, `DWCode`, `PTT ID` (`OFF`, `UP CODE`, `DOWN CODE`,
-`UP+DOWN CODE`, `APOLLO QUINDAR`), `D ST`, `D Decd`, `D List`, `D Live`
-(canlı DTMF çözücü).
-
-### Gizli (servis) menü
-
-`PTT` + `SIDE1` ile açılışta görünür:
-
-| Menü | Açıklama |
-|------|----------|
-| `F Lock` | Bölgesel frekans kilidi (`DEFAULT+`, `FCC HAM`, `CE HAM`, `GB HAM`, `PMR 446`, `GMRS/FRS/MURS`, `DISABLE ALL`, `UNLOCK ALL` vb.) |
-| `Tx 200` / `Tx 350` / `Tx 500` | İlgili bantlarda gönderime izin |
-| `350 En` | 350 MHz bandını etkinleştirir |
-| `FrCali` | Referans kristal (frekans) kalibrasyonu |
-| `BatCal` | Pil voltajı kalibrasyonu |
-| `BatTyp` | Pil tipi (`1600mAh K5`, `2200mAh K5`, `3500mAh K5`, `1400mAh K1`, `2500mAh K1`) |
-| `Reset` | Sıfırlama (`VFO` veya `ALL`) |
-
-> [!CAUTION]
-> Gönderme yaparken yalnızca lisansınızın ve yerel mevzuatın izin verdiği
-> frekans, güç ve modları kullanın.
-
-## 9. Çıkış gücü seviyeleri
-
-| Seviye | Yaklaşık güç |
-|--------|--------------|
-| `LOW 1` | < 20 mW |
-| `LOW 2` | 125 mW |
-| `LOW 3` | 250 mW |
-| `LOW 4` | 500 mW |
-| `LOW 5` | 1 W |
-| `MID` | 2 W |
-| `HIGH` | 5 W |
-| `USER` | `SetPwr` menüsünden ayarlanır |
-
-S-metre, IARU Bölge 1 VHF/UHF önerisine göre kalibre edilmiştir (sabit S0–S9+ değerleri).
-
-## 10. Tarama (Scan)
-
-- 24 adlandırılmış tarama listesi + 1 karma (`MIX`) liste desteklenir.
-- Her hafıza kanalı `OFF`, `01`–`24` arasından bir listeye veya `ALL`'a atanabilir.
-- `ALL` listesi, `OFF` olanlar dışındaki tüm kanalları tarar.
-- `MIX`, seçtiğiniz listeleri tek bir tarama kümesinde birleştirir.
-- Tarama sırasında doğrudan liste seçimi: `00` = `ALL`, `01`–`24` = ilgili liste, `25` = `MIX`.
-- Tarama sırasında `MENU` uzun basış: geçerli kanalı taramadan çıkarır.
-- 64 adede kadar frekans hariç tutulabilir.
-- Hızlı tarama modunda saniyede yaklaşık 150 frekans taranır (`SetScn` = `FAST`).
-- Tarama durdurulduğunda `EXIT` başlangıç frekansına döner; `MENU` son bulunan
-  yayında kalır.
-
-## 11. Full Watch (çoklu dinleme)
-
-`RxMode` menüsündeki seçenekler:
+`RxMode`:
 
 | Seçenek | Açıklama |
 |---------|----------|
-| `MAIN ONLY` | Yalnızca ana VFO'da alım ve gönderme |
-| `DUAL RX RESPOND` | İki VFO'yu dinler, sinyal gelen VFO'dan cevap verir |
-| `CROSS BAND` | Ana VFO'da gönderir, ikincil VFO'da alır |
-| `MAIN TX DUAL RX` | İki VFO'yu dinler, her zaman ana VFO'dan gönderir |
-| `FULL RX RESPOND` | VFO A, VFO B ve 2 öncelikli kanalı dinler; sinyal gelen kanaldan cevap verir |
-| `MAIN TX FULL RX` | Hepsini dinler, her zaman seçili ana VFO'dan gönderir |
+| `MAIN ONLY` | Yalnızca ana VFO |
+| `DUAL RX RESPOND` | A ve B'yi dinle, sinyal gelenden cevap ver |
+| `CROSS BAND` | Ana VFO'dan gönder, diğerinden al |
+| `MAIN TX DUAL RX` | İkisini dinle, her zaman ana VFO'dan gönder |
+| `FULL RX RESPOND` | A, B ve 2 öncelikli kanalı (`PriCh1`, `PriCh2`) dinle, sinyal gelenden cevap ver |
+| `MAIN TX FULL RX` | Hepsini dinle, her zaman ana VFO'dan gönder |
 
-Öncelikli kanallar `PriCh1` / `PriCh2` ayarlarından alınır. Tekrarlanan, geçersiz
-veya zaten VFO A/B'de yüklü olan kanallar otomatik olarak atlanır. Ekrandaki
-hareketli oklar arka plandaki dinleme döngüsünü gösterir.
+## 11. Multiboot ve Multiconfig
 
-## 12. Multiboot ve Multiconfig
+- **Multiboot**: Harici flash'ta 1 Main + 4 firmware yuvası. Telsizi `MENU` basılı açın,
+  `UP`/`DOWN` ile seçin, `MENU` ile yükleyin, `EXIT` ile çıkın. **Yükleme sırasında kapatmayın.**
+- **Multiconfig**: Her yuvanın kendi yapılandırma bankası (kanallar, VFO'lar, listeler, ayarlar).
+  `SetCfg` başka bir bankayı yeniden başlatmadan uygular. Durum çubuğunda `CM`, `C1`–`C4`.
 
-**Multiboot**, harici Flash'ta otomatik güncellenen bir **Main** yedek ve dört ek
-firmware yuvası tutar.
+## 12. Uygulamalar (Labs)
 
-1. Telsizi kapatın, `MENU` tuşunu basılı tutarak açın.
-2. Seçici görününce tuşu bırakın.
-3. `UP` / `DOWN` ile yuvayı seçin, `MENU` ile geri yükleyin, `EXIT` ile değişiklik
-   yapmadan çıkın.
-
-> [!CAUTION]
-> Bir yuva geri yüklenirken telsizi asla kapatmayın.
-
-**Multiconfig**, Main ve her yuva için ayrı bir yapılandırma bankası sağlar
-(kanallar ve adları, VFO ayarları, tarama listeleri, radyo ayarları). Durum
-çubuğunda etkin banka `CFG M` veya `CFG 1`–`CFG 4` olarak görünür.
-
-- `SetCfg` menüsü başka bir bankayı yeniden başlatmadan anında uygular.
-- `SetCfg` seçimi normal kapama/açmalarda korunur.
-- Multiboot ile firmware değiştirildiğinde doğal eşleşme geri gelir
-  (`Main` → `CFG M`, yuva `N` → `CFG N`).
-
-## 13. Overlay uygulamaları ve APRS
-
-`F` + `7` ile uygulama menüsü açılır. Harici Flash'ta 64 uygulamaya kadar yer
-vardır; her uygulama çalışırken 4 KiB'lık bir RAM alanına yüklenir.
+`F` + `7` → `UP`/`DOWN` → `MENU`. Uygulamalar UV Studio ile yüklenir; her zaman firmware ile
+**aynı sürümün** uygulama paketini kullanın.
 
 | Grup | Uygulamalar |
 |------|-------------|
-| Radyo araçları | Broadcast FM, Fox Hunt, Beacon, Beam, Signal Finder, Spectrum3D, ToneCall |
-| Dijital / sinyal | ACARS RX, AIS RX, ATIS RX, ATIS DSC RX, APRS RX, APRS TX, APRS Edit, APRS DIGI, KISS TNC, CW Decode, CW Keyer, CW Trainer, CW USB, SSTV, POCSAG RX, Sonde M10/M20/RS41, GeoNav, EPIRB 406 |
-| Araçlar | AF Scope, AF Spectro, QR Map, Resistor, System Info, Flash Map |
-| Oyunlar / demolar | Breakout, Cube3D, Hell Maze, Minesweeper, Plasma, Rapid Roll, Snake, Sokoban, Space Impact, Tetris |
+| Radyo araçları | Broadcast FM, Fox Hunt, Beacon, Beam, Sig Finder, Spectrum3D, ToneCall |
+| APRS | APRS RX, APRS TX, APRS Edit, APRS DIGI, KISS TNC, GeoNav |
+| Havacılık / deniz | ACARS RX, AIS RX, ATIS RX, ATIS DSC RX |
+| Sondalar / işaretçiler | Sonde RS41, M10, M20, MRZ, EPIRB 406, Scan406 |
+| Diğer veri | POCSAG RX, SSTV |
+| CW | CW Decode, CW Keyer, CW USB, CW Trainer, CW Mem, CW Mem Edit, CW QSO Auto |
+| Araçlar | AF Scope, AF Spectro, Resistor, System Info, Flash Map, QR Map |
+| Oyunlar | Breakout, Cube3D, Hell Maze, Minesweeper, Plasma, Rapid Roll, Snake, Sokoban, Space Impact, Tetris |
 
-**Öne çıkanlar**
+Her uygulamanın tuşları ve kullanımı: [kilavuz/11 Uygulamalar](kilavuz/11-uygulamalar.md).
 
-- **APRS RX:** 1200 baud Bell 202 AFSK AX.25 çerçevelerini alır, konum ve Mic-E
-  verisini gösterir, son 5 çerçeveyi saklar.
-- **APRS TX / APRS Edit:** Çağrı işareti, SSID, digipeater yolu, konum, sembol ve
-  89 karakterlik yorum düzenlenip konum beacon'ı gönderilir.
-- **APRS DIGI:** Sınırlı bir `WIDE1-1` dolgu digipeater'ı.
-- **KISS TNC:** USB-C kablo üzerinden telsizi APRSdroid (veya herhangi bir KISS
-  istemcisi) için TNC olarak kullanır.
-- **GeoNav:** APRS konumunu ev QTH'si olarak alır, radyosonda uygulamasından gelen
-  konuma yön ve mesafe gösterir.
-- **AF Scope / AF Spectro:** Demodüle edilmiş RX sesi için osiloskop, frekans
-  sayacı, akort göstergesi, spektrum ve sonogram. `MENU` ile ikisi arasında geçilir.
+> [!CAUTION]
+> Gönderim yapan uygulamaları yalnızca belgeyle ve izin verilen frekanslarda kullanın.
 
-> [!IMPORTANT]
-> Overlay uygulamaları deneyseldir. Uyumluluk için her zaman kurulu firmware ile
-> **aynı sürümde** yayımlanan uygulama dosyalarını kullanın.
+## 13. RF Log, Fox Hunt, Beacon, BEAM, AirCopy
 
-## 14. Fox Hunt ve Beacon
+- **RF Log**: Bir yan tuşa `RF LOG` işlevi atanınca kayıt etkinleşir; aynı tuş geçmişi açar.
+  `UP`/`DOWN` gezin, `MENU` filtre (hepsi/RX/TX), `*` ayrıntı sütunu, iki kez uzun `MENU` sil.
+- **Fox Hunt** (FieldOps, Labs): `1` gösterge, `2` ses, `3` + `UP`/`DOWN` zayıflatıcı, `MENU`
+  tepe/minimum sıfırla, uzun `F` kilit.
+- **Beacon** (FieldOps, Labs): `1` TX penceresi, `2` bekleme, `3` tanımlayıcı (`MOE`…`MO5`, `MO`,
+  çağrı işareti), `4` `TONE`/`CARR`.
+- **BEAM** (Transfer, Labs): Bir VFO'nun ayarlarını başka bir telsizin ilk boş kanalına gönderir.
+  `UP`/`DOWN` TX/RX modu, `MENU` başlat.
+- **AirCopy** (Transfer, Labs): İki telsizi `PTT` + `SIDE2` ile açın. `*` ile `AIR COPY` /
+  `CABLE COPY`, `UP`/`DOWN` ile banka, `Settings` veya `All`; alıcıda `EXIT`, göndericide `MENU`.
+  İki telsiz aynı firmware sürümünde olmalı. `Flash 2M` kalibrasyon sektörünü kopyalamaz.
 
-**Fox Hunt** (tilki avı alıcısı): kalibre S-metre, kayan sinyal geçmişi grafiği,
-tepe/minimum/eğilim göstergeleri, seçilebilir RF zayıflatma, sessiz / Geiger
-tarzı / alınan ses modları. `F` uzun basış tuş takımını kilitler (zayıflatma ok
-tuşlarıyla ayarlanabilir kalır).
+## 14. UV Studio, K5Viewer ve CHIRP
 
-**Beacon** (Mors vericisi): `MOE`, `MOI`, `MOS`, `MOH`, `MO5`, `MO`
-tanımlayıcıları, isteğe bağlı çağrı işareti, ayarlanabilir TX ve bekleme
-süreleri, canlı geri sayım, kalıcı ayarlar, TX kilidi ve pil güvenlik kontrolleri.
+- **UV Studio**: Firmware yükleme, Multiboot yuvaları, kalibrasyon, açılış logosu, uygulama
+  yükleme, **K5Viewer** (ekran yansıtma, ekran görüntüsü, uzaktan tuş) ve RF Log panosu.
+- **CHIRP**: Bu firmware için özel sürücü gerekir; her sürümle birlikte
+  [Releases](https://github.com/armel/uv-k1-k5v3-firmware-custom/releases) sayfasında yayımlanır.
+  CHIRP'te **File → Load Module** ile yükleyin.
 
-Her iki ekran da UV Studio'daki K5Viewer'a yansıtılır. Yan tuşlara `FOX HUNT` veya
-`BEACON` işlevi atanabilir.
+## 15. Kaynaktan derleme
 
-## 15. RF Log
-
-RF Log etkinken RX ve TX etkinliği otomatik olarak harici Flash'a kaydedilir:
-yön (RX/TX), frekans ve kanal, kanal adı, süre, S-metre seviyesi ve pil voltajı.
-Telsizde RX/TX filtreli geçmiş ve ayrıntı görünümü vardır; UV Studio'da canlı
-pano, analiz ve CSV dışa aktarma kullanılabilir. Yan tuşa `RF LOG` atanabilir.
-
-## 16. AirCopy ve kablo ile kopyalama
-
-*(Service sürümünde)*
-
-AirCopy, bir 128 kanallık bankayı, radyo ayarlarını veya tüm bankalar + ayarları
-tek seferde aktarır. Her iki yönde onaylı (ACK) protokol kullanılır; kayıp onayda
-3 kez yeniden denenir. CRC32 karşılaştırmasıyla yalnızca farklı bloklar gönderilir.
-
-**Kullanım**
-
-1. Her iki telsizde AirCopy'yi açın (`PTT` + `SIDE2` ile açılış).
-2. `*` ile `AIR COPY` ve `CABLE COPY` arasında geçin.
-3. `UP` / `DOWN` ile bir bankayı, `Settings` veya `All (Mem+Set)` seçin.
-4. Gönderici telsizde `MENU`, alıcı telsizde `EXIT` tuşuna basın.
-
-**Kablo modu** UART üzerinden 460800 baud hızında çalışır ve ayrıca tüm 2 MiB
-harici Flash'ı kopyalayan `Flash 2M` seçeneğini sunar. Cihaza özel kalibrasyon
-sektörü asla kopyalanmaz; işlemden sonra alıcı telsizi yeniden başlatın.
-
-> [!IMPORTANT]
-> Yeni AirCopy formatı eski sürümlerle uyumlu değildir. İki telsiz de aynı
-> firmware sürümünü kullanmalıdır.
-
-## 17. UV Studio ve K5Viewer
-
-[UV Studio](https://armel.github.io/uvstudio/) tek bir tarayıcı arayüzünde şunları sunar:
-
-- Firmware yükleme
-- Kalibrasyon yedekleme / geri yükleme
-- Açılış logosu yönetimi
-- **K5Viewer:** USB seri bağlantı üzerinden canlı ekran yansıtma, ekran görüntüsü
-  ve uzaktan tuş takımı kontrolü (USB kopunca otomatik yeniden bağlanır)
-- RF Log izleme, analiz ve CSV dışa aktarma
-
-## 18. CHIRP
-
-Bu firmware için özel bir CHIRP sürücüsü gerekir. Uygun sürücü her sürümle birlikte
-[Releases](https://github.com/armel/uv-k1-k5v3-firmware-custom/releases) sayfasında
-yayımlanır; firmware ile sürücüyü aynı sürümden indirin.
-
-## 19. Kaynaktan derleme
-
-Gereksinimler: Docker ve Bash ortamı (Linux, macOS, WSL veya Windows'ta Git Bash).
-
-```bash
-./compile-firmware.sh [Preset] [ek CMake seçenekleri]
-```
-
-Hazır ayarlar (preset): `Fusion` (varsayılan), `Service`, `Custom`, `All`
-(Fusion + Service). Çıktılar `build/<Preset>` dizinine `.elf`, `.bin` ve `.hex`
-olarak yazılır.
-
-Örnekler:
+Gereksinimler: Docker ve Bash (Linux, macOS, WSL veya Windows'ta Git Bash).
 
 ```bash
 ./compile-firmware.sh Fusion
 ```
 
-```bash
-./compile-firmware.sh Service -DENABLE_VOX=OFF
-```
+Hazır ayarlar: `Custom`, `Fusion` (varsayılan), `Transfer`, `FieldOps`, `Labs`, `Max`,
+`Fusion_`, `Service_`, `All`. Çıktılar `build/<Preset>` dizinine `.elf`, `.bin` ve `.hex` olarak yazılır.
+Ek CMake seçenekleri ön ayar adından sonra verilir:
 
 ```bash
-./compile-firmware.sh Fusion -DDEV=ON
+./compile-firmware.sh Fusion -DENABLE_VOX=OFF
 ```
 
-İlk çalıştırmada Docker imajı oluşturulduğu için birkaç dakika sürebilir.
-
-## 20. Sık karşılaşılan durumlar
+## 16. Sık karşılaşılan durumlar
 
 | Durum | Çözüm |
 |-------|-------|
-| AM alımı bozuk / parazitli | Telsizin ön katında bant filtresi yoktur; güçlü RF ortamlarında bu donanımsal bir sınırlamadır. RF zayıflatma veya FM kullanın. |
-| Menü öğeleri eksik | Kilitli olabilir (Rescue Ops); `PTT` + `SetKey` tuşuyla açılışta kilidi kaldırın. Servis öğeleri için `PTT` + `SIDE1` ile açın. |
-| Gönderme yapılamıyor | `F Lock` bölge ayarını, kanalın `TXLock` durumunu ve `SetLck` kilit kapsamını kontrol edin. |
-| Overlay uygulaması açılmıyor | Uygulama dosyalarının kurulu firmware ile aynı sürümden olduğundan emin olun. |
-| Firmware değişince ayarlar farklı | Multiboot doğal bankayı geri yükler; gerekirse `SetCfg` ile istenen bankayı tekrar seçin. |
-| Ok tuşları ters çalışıyor | `SetNav` menüsünden telsiz modelinize uygun düzeni seçin (UV-K1 / UV-K5). |
+| `TX DISABLE` | Frekans `F Lock` bölgesinin dışında |
+| Sinyal var, ses yok | `RxCTCS`/`RxDCS`'yi `OFF` yapın |
+| Ses bozuk / kısık | `W/N` ayarını karşı tarafa uydurun |
+| AM'de parazit, hayalet sinyaller | Alıcı ön katı doyuyor; donanım sınırı. Uzaklaşın, zayıflatıcı kullanın |
+| `MENU` çalışmıyor, durum çubuğunda `RO` | Rescue Ops kilidi: `PTT` + `SetKey` tuşuyla açılışta kaldırın |
+| Gizli menü öğeleri yok | `PTT` + `SIDE1` ile açılış |
+| `F` + `7` uygulama yerine VOX açıyor | Uygulamalar yalnızca Labs sürümünde |
+| Uygulama `NOT SUPPORTED` diyor | Firmware ile aynı sürümün uygulama paketini yükleyin |
+| Ok tuşları ters | Gizli menüde `SetNav` |
+
+Daha fazlası: [kilavuz/14 Sorun giderme](kilavuz/14-sorun-giderme.md).
 
 ---
 
-73! İyi kullanımlar.
+73!
