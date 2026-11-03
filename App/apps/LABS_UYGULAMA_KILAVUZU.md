@@ -476,21 +476,43 @@ API seviyesi 3 ve `--require serial` gerekir (Labs v6.3.0+). Kaynak:
 
 Donanıma yüklemeden önce uygulama mantığının çoğu bilgisayarda test
 edilebilir: uygulama kaynağını `HOST_TEST` tanımıyla, sahte bir `app_api_t`
-dolduran bir C dosyasının içine `#include` edin. Örnek: `App/apps/usbterm/test/`.
+dolduran bir C dosyasının içine `#include` edin. Bunun için ortak iki parça var:
 
-- `host_term.c` sahte servisleri sağlar (gerçek 3×5 fontla çizim, simüle
-  zaman, betikten tuş basışları ve seri veri) ve bir betik dili çalıştırır.
-- `test_term.py` derler, senaryoları çalıştırır, ekranı PNG olarak çizer;
-  ayrıca uygulamayı canlı modda bir sanal seri porta (pty) bağlayıp
-  `uvterm.py` ile uçtan uca konuşturur.
-- 64 bit bilgisayarda işaretçiler 8 bayt olduğundan `app_api.h` içindeki
-  düzen kontrolleri `#define _Static_assert(...)` ile kapatılır.
+- **`App/apps/host_mock.h`** — sahte firmware API'si. Metin servisleri
+  firmware'in kendi fontlarıyla (`App/font.c`) çizer; zaman simüle edilir;
+  tuş basışları, seri veri, VFO frekansı bir betikten gelir (`wait`, `press`,
+  `down`/`up`, `rx`, `host`, `freq`, `state`, `shot`). Canlı modda
+  (`LIVE_FD`) seri port gerçek bir sanal porta (pty) bağlanır.
+- **`App/apps/host_test.py`** — Python yardımcıları: varlıkları ve test
+  programını derler, betik çalıştırır, çıktıyı (`STATE`, `TX`, `TONE`,
+  `CFG`…) ayrıştırır, ekranı PNG olarak çizer.
+
+Bir uygulama için tek gereken küçük bir `test/host_<ad>.c`:
+
+```c
+#include <stdio.h>
+#include <string.h>
+#define HOST_TEST 1
+#define _Static_assert(...)          /* 64 bit bilgisayarda işaretçiler 8 bayt */
+#include "../benimapp_app.c"
+static void mock_state(void) { printf("STATE sayac=%u\n", g.sayac); }
+static void mock_quit(void)  { g.quit = true; }
+#include "../../host_mock.h"
+int main(int argc, char **argv) { return mock_main(argc, argv); }
+```
+
+Örnekler: `App/apps/usbterm/test/` (uçtan uca `uvterm.py` testi dahil),
+`App/apps/telsizokulu/test/` (400 sınav sorusunu veriyle karşılaştırır).
 
 ```bash
 python3 App/apps/usbterm/test/test_term.py
 ```
 
-Diğer örnekler: `App/apps/kisstnc/test/`, `App/apps/resistor/test/`.
+```bash
+python3 App/apps/telsizokulu/test/test_okul.py
+```
+
+Firmware deposundaki diğer örnekler: `App/apps/kisstnc/test/`, `App/apps/resistor/test/`.
 
 ---
 

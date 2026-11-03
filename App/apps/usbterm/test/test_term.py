@@ -1,90 +1,43 @@
 #!/usr/bin/env python3
-# USB Term host tests: the app built for the computer against a mock API
-# (test/host_term.c), driven by scripts. Checks the serial protocol (banner,
-# echo, commands, line ends, UTF-8), the keypad (multi-tap, long press, modes,
-# EXIT) and the history, and renders LCD mockups into test/out/*.png.
+# USB Term host tests: the app built for the computer against the mock API of
+# App/apps/host_mock.h (the firmware's own fonts), driven by scripts. Checks
+# the serial protocol (banner, echo, commands, line ends, UTF-8), the keypad
+# (multi-tap, long press, modes, EXIT), the history and the two-line keypad
+# area, runs the app against uvterm.py over a pty, and renders LCD mockups
+# into test/out/*.png.
 #
 #   python3 App/apps/usbterm/test/test_term.py
-import os, re, subprocess, sys
+import os, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 APP = os.path.dirname(HERE)
-ROOT = os.path.abspath(os.path.join(APP, "..", "..", ".."))
+sys.path.insert(0, os.path.dirname(APP))
+import host_test as ht  # noqa: E402
+from host_test import check, press, script  # noqa: E402
+
+ROOT = ht.ROOT
 OUT = os.path.join(HERE, "out")
-BIN = os.path.join(OUT, "host_term")
-ASSETS = os.path.join(APP, "usbterm_assets.bin")
+VER = ht.app_version(APP).encode()
 
-def build():
-    os.makedirs(OUT, exist_ok=True)
-    # The 3x5 font, straight from the firmware source.
-    src = open(os.path.join(ROOT, "App", "font.c"), encoding="utf-8").read()
-    body = src[src.index("gFont3x5[][3]"):]
-    body = body[body.index("{") + 1:]
-    rows = []
-    for line in body.splitlines():
-        s = line.strip()
-        if s.startswith("};"):
-            break
-        m = re.match(r"\{\s*(0x[0-9a-fA-F]+),\s*(0x[0-9a-fA-F]+),\s*(0x[0-9a-fA-F]+)\s*\}", s)
-        if m:
-            rows.append(m.groups())
-    assert len(rows) >= 95, len(rows)
-    with open(os.path.join(OUT, "font3x5.h"), "w") as f:
-        f.write("static const uint8_t gFont3x5[][3] = {\n")
-        f.write("".join(f"    {{{a}, {b}, {c}}},\n" for a, b, c in rows))
-        f.write("};\n")
-    env = dict(os.environ, APP_VER=os.environ.get("APP_VER", "1.0"))
-    subprocess.check_call([sys.executable, os.path.join(APP, "gen_assets.py"),
-                           ASSETS, os.path.join(APP, "usbterm_assets.h")], env=env)
-    subprocess.check_call(["cc", "-std=gnu11", "-O1", "-g", "-Wall", "-Wextra", "-Werror",
-                           "-Wno-unused-function", "-I", OUT, "-o", BIN,
-                           os.path.join(HERE, "host_term.c")], cwd=APP)
 
-class Run:
-    def __init__(self, script, cfg=None):
-        args = [BIN, ASSETS] + ([cfg] if cfg else [])
-        p = subprocess.run(args, input=script, capture_output=True, text=True, cwd=APP)
-        if p.returncode:
-            sys.exit(f"host_term failed: {p.stderr}")
-        self.lines = p.stdout.splitlines()
-        self.tx = b"".join(bytes.fromhex(l[3:]) for l in self.lines if l.startswith("TX "))
-        self.tones = [tuple(map(int, l.split()[1:])) for l in self.lines if l.startswith("TONE ")]
-        self.states = []
-        cur = None
-        for l in self.lines:
-            if l.startswith("STATE "):
-                cur = {"rows": []}
-                for m in re.finditer(r"(\w+)=(\[[^\]]*\]|\S+)", l[6:]):
-                    k, v = m.groups()
-                    cur[k] = v[1:-1] if v.startswith("[") else int(v)
-                cur["rows_n"] = cur.pop("rows", None)
-                cur["rows"] = []
-                self.states.append(cur)
-            elif l.startswith("ROW ") and cur is not None:
-                cur["rows"].append(l[5:-1])
-        self.cfg = next((bytes.fromhex(l[4:]) for l in self.lines if l.startswith("CFG ")), None)
-        self.ended = "END" in self.lines        # False: the app quit by itself
-    @property
-    def last(self):
-        return self.states[-1]
+def Run(s, cfg=None):
+    return ht.Run(APP, "usbterm", s, cfg=cfg)
 
-def script(*cmds):
-    return "\n".join(cmds) + "\n"
 
-FAILS = []
-def check(name, cond, detail=""):
-    print(("  ok   " if cond else "  FAIL ") + name + ("" if cond else f"  -> {detail}"))
-    if not cond:
-        FAILS.append(name)
+def raw(shot):
+    return open(os.path.join(OUT, shot + ".raw"), "rb").read()
 
-def press(*keys):
-    return [f"press {k}" for k in keys]
+
+def fbline(shot, line):
+    """Frame line 0-6 of a shot (128 bytes)."""
+    return raw(shot)[128 * (line + 1):128 * (line + 2)]
+
 
 # ---------------------------------------------------------------------------
 def tests():
     print("serial: connection, echo, line ends")
     r = Run(script("wait 50", "host 1", "wait 50", "rx Merhaba\\r\\n", "wait 50", "state"))
-    check("banner on connection", r.tx.startswith(b"# USB Term 1.0 ready - /help\r\n"), r.tx)
+    check("banner on connection", r.tx.startswith(b"# USB Term " + VER + b" ready - /help\r\n"), r.tx)
     check("echo of the received line", b"Merhaba\r\n" in r.tx, r.tx)
     check("line shown", r.last["rows"] == ["Merhaba"], r.last)
     check("notification tone", (1200, 40) in r.tones, r.tones)
@@ -129,7 +82,7 @@ def tests():
     r = Run(script("host 1", "wait 50", "lost", "wait 50", "rx /echo off\\r", "wait 50",
                    "rx /info\\r", "wait 50"))
     info = r.tx.split(b"# echo off\r\n", 1)[1]
-    check("/info", info == b"# USB Term 1.0 / F4HWN Labs v6.3.0\r\n"
+    check("/info", info == b"# USB Term " + VER + b" / F4HWN Labs v6.3.0\r\n"
                            b"# RX 145.50000 MHz  -97 dBm\r\n"
                            b"# BAT 7.85 V  lost 1\r\n", info)
 
@@ -189,20 +142,38 @@ def tests():
 
     rows = "".join(f"line {i}\\r" for i in range(20))
     r = Run(script("host 1", "wait 50", "rx " + rows, "wait 100", *press("UP", "UP", "UP", "DOWN"),
-                   "state", "down UP", "wait 2000", "up", "wait 50", "state"))
+                   "state", "down UP", "wait 3000", "up", "wait 50", "state"))
     check("UP / DOWN scroll the history", r.states[0]["scroll"] == 2, r.states[0])
-    check("UP held repeats, stops at the oldest row", r.states[1]["scroll"] == 12, r.states[1])
+    check("UP held repeats, stops at the oldest row (20 rows, 6 on screen)",
+          r.states[1]["scroll"] == 14, r.states[1])
 
     r = Run(script("host 1", "wait 50", "rx " + rows + "/pi", "wait 100", "down UP", "wait 2500", "up",
                    "wait 50", "state", "rx ng\\r", "wait 100", "state", "shot clamp"))
-    check("scrolled to the top with an unfinished line", r.states[0]["scroll"] == 13, r.states[0])
+    check("scrolled to the top with an unfinished line", r.states[0]["scroll"] == 15, r.states[0])
     check("that line ends as a command: scroll pulled back in, rows still drawn",
-          r.states[1]["scroll"] == 12 and any(open(os.path.join(OUT, "clamp.raw"), "rb").read()[128:]),
+          r.states[1]["scroll"] == 14 and ht.screen_text(APP, "clamp"),
           r.states[1])
 
     r = Run(script("host 1", "wait 50", "rx " + "".join(f"r{i}\\r" for i in range(40)), "wait 100", "state"))
     check("32-row scrollback keeps the newest rows",
           r.last["rows_n"] == 32 and r.last["rows"][0] == "r8" and r.last["rows"][-1] == "r39", r.last)
+
+    print("keypad area (v2: 6x7 font, two lines of 18)")
+    num = ["press STAR", "press STAR"]           # 123 mode: one press, one digit
+    r = Run(script("host 1", "wait 50", *num, *press(*"12345"), "wait 50", "shot in5",
+                   *press(*"6789012345678901"), "wait 50", "shot in21",
+                   *press(*"2345678901234567890"), "wait 50", "shot in40", "state"))
+    l5, l6 = fbline("in5", 5), fbline("in5", 6)
+    check("5 characters: first keypad line only", any(l5) and not any(l6))
+    check("block cursor after them (x 35..41)", all(b & 0x7F == 0x7F for b in l5[35:42]), l5[35:42].hex())
+    check("21 characters: the second line in use", any(fbline("in21", 6)))
+    l6 = fbline("in40", 6)
+    check("40 characters: text moved up a line, cursor on line 2, column 4",
+          r.last["in"] == "1234567890123456789012345678901234567890"
+          and all(b & 0x7F == 0x7F for b in l6[28:35]) and not any(l6[36:]), l6.hex())
+    Run(script("host 1", "wait 50", *num, *press(*"901234567890123456"), "wait 50", "shot in18"))
+    check("40 characters: line 1 shows characters 19-36, as typed alone",
+          fbline("in40", 5) == fbline("in18", 5) and any(fbline("in18", 5)))
 
     r = Run(script("wait 50", "state"), cfg="540200")
     check("saved config restored (123, beep off)", r.last["mode"] == 2 and r.last["sound"] == 0, r.last)
@@ -226,7 +197,8 @@ def e2e():
     tty.setraw(slave)                # no line discipline echo before pyserial opens it
     radio = script("host 1", "wait 1500", *press(4, 4), "wait 1000", *press(4, 4, 4), "wait 1000",
                    "press MENU", "wait 1500", "state")
-    p = subprocess.Popen([BIN, ASSETS], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
+    p = subprocess.Popen([os.path.join(OUT, "host_usbterm"), os.path.join(APP, "usbterm_assets.bin")],
+                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
                          cwd=APP, env=dict(os.environ, LIVE_FD=str(master)), pass_fds=(master,))
     p.stdin.write(radio)
     p.stdin.close()
@@ -261,34 +233,20 @@ def mockups():
         "rx Bilgisayardan selamlar :)\\r", "wait 100",
         "rx Frekans: 145.500 MHz\\r", "wait 100",
         *press(7, 7, 7, 7), "wait 1000", *press(3, 3), "wait 1000", *press(5, 5, 5), "wait 1000",
-        *press(2), "wait 1000", *press(6), "wait 50",
+        *press(2), "wait 1000", *press(6), "wait 1000", *press(0), "wait 1000",
+        *press(8), "wait 1000", *press(3, 3), "wait 1000", *press(5, 5, 5), "wait 1000",
+        *press(7, 7, 7, 7), "wait 1000", *press(4, 4, 4), "wait 1000", *press(9, 9, 9, 9), "wait 50",
         "shot chat",
     )
-    r = Run(s)
-    try:
-        from PIL import Image
-    except ImportError:
-        print("  (PIL missing: no PNG mockups)")
-        return
-    for name in [l.split()[1] for l in r.lines if l.startswith("SHOT ")]:
-        raw = open(os.path.join(OUT, name + ".raw"), "rb").read()
-        img = Image.new("RGB", (128, 64), (196, 214, 170))
-        for page in range(8):
-            for x in range(128):
-                b = raw[page * 128 + x]
-                for bit in range(8):
-                    if b >> bit & 1:
-                        img.putpixel((x, page * 8 + bit), (32, 40, 32))
-        img = img.resize((128 * 4, 64 * 4), Image.NEAREST)
-        path = os.path.join(OUT, name + ".png")
-        img.save(path)
-        print(f"  mockup {os.path.relpath(path, ROOT)}")
+    for shot in Run(s).shots:
+        path = ht.png(APP, shot)
+        if path:
+            print(f"  mockup {os.path.relpath(path, ROOT)}")
+
 
 if __name__ == "__main__":
-    build()
+    ht.build(APP, "usbterm")
     tests()
     e2e()
     mockups()
-    if FAILS:
-        sys.exit(f"{len(FAILS)} check(s) failed")
-    print("all checks passed")
+    ht.finish()

@@ -1,13 +1,14 @@
-# USB Term 1.0 — telsiz ile bilgisayar arasında terminal
+# USB Term 2.0 — telsiz ile bilgisayar arasında terminal
 
 **USB Term**, F4HWN **Labs** firmware'i için bir overlay uygulamasıdır. Telsizi
 (UV-K1 / UV-K5 V3) USB-C kablosuyla bilgisayara bağlar ve iki yönlü bir metin
 terminali kurar:
 
 - **Bilgisayar → telsiz:** terminalde yazdığınız her satır telsizin ekranında
-  görünür (32 sütun × 8 satır, 32 satırlık geri kaydırma).
+  görünür (32 sütun × 6 satır, 32 satırlık geri kaydırma).
 - **Telsiz → bilgisayar:** telsizin tuş takımından (eski telefonlardaki gibi
-  çoklu basışla) yazdığınız satır `MENU` ile bilgisayara gönderilir.
+  çoklu basışla) yazdığınız satır `MENU` ile bilgisayara gönderilir. Yazma
+  alanı ekranın altındaki **iki satır, büyük (6×7) font** (18 + 18 karakter).
 - **Komutlar:** bilgisayardan `/info`, `/beep`, `/clear`… göndererek telsizin
   frekansını, RSSI'sini, pil gerilimini sorabilir, bip çaldırabilirsiniz.
 
@@ -28,6 +29,13 @@ Bilgisayar tarafı için iki seçenek var:
 
 Genel Labs uygulama geliştirme / yükleme kılavuzu:
 [`../LABS_UYGULAMA_KILAVUZU.md`](../LABS_UYGULAMA_KILAVUZU.md).
+
+## Sürümler
+
+- **2.0** — Yazma alanı büyüdü: telsizde yazdığınız metin artık ekranın
+  altında, çizginin altındaki iki satırda büyük 6×7 fontla (18 + 18 karakter)
+  ve blok imleçle görünür. Geçmiş 6 satır (32 satır geri kaydırma aynı).
+- **1.0** — İlk sürüm.
 
 ## Gereksinimler
 
@@ -101,7 +109,7 @@ uvterm - /dev/ttyACM0 açık. Telsizde USB Term uygulamasını açın (F+7 -> US
 [telsiz hazır - yazıp Enter'a basın, çıkmak için /quit]
 PC> Selam telsiz, nasılsın?
 PC> /info
-  · USB Term 1.0 / F4HWN Labs v6.3.0
+  · USB Term 2.0 / F4HWN Labs v6.3.0
   · RX 145.50000 MHz  -97 dBm
   · BAT 7.85 V  lost 0
 [21:16:16] TELSİZ> selam pc
@@ -145,8 +153,8 @@ gönderebilirsiniz.
 | Yer | Gösterir |
 |---|---|
 | Durum çubuğu | `TERM`, `USB` / `NO USB` (bir program portu açık mı: DTR), giriş modu (`abc`/`ABC`/`123`), `BEEP` ya da kaydırma `^N`, pil |
-| 8 satır | Gelen satırlar ve `> ` ile başlayan gönderdikleriniz; bilgisayarın henüz bitmemiş satırı en altta canlı görünür |
-| En alt satır | Telsizde yazdığınız satır ve imleç |
+| Üstteki 6 satır (küçük 3×5 font) | Gelen satırlar ve `> ` ile başlayan gönderdikleriniz; bilgisayarın henüz bitmemiş satırı en altta canlı görünür |
+| Çizginin altındaki 2 satır (6×7 font) | Telsizde yazdığınız satır ve blok imleç. Çoklu basışta henüz değişebilen harf ters görünür. İkinci satır dolunca metin bir satır yukarı kayar (64 karaktere kadar). |
 
 Gelen her satırda arka ışık yanar, yeşil LED kısa yanıp söner ve (`BEEP`
 açıksa) kısa bir bip çalar. 32 karakterden uzun satırlar alt satıra kayar.
@@ -159,7 +167,7 @@ satırları telsiz ekranında gösterilmez; yanıtlar `# ` ile başlar.
 | Komut | Yanıt |
 |---|---|
 | `/help` | Komut listesi |
-| `/info` | `# USB Term 1.0 / F4HWN Labs v6.3.0`, `# RX 145.50000 MHz  -97 dBm`, `# BAT 7.85 V  lost 0` |
+| `/info` | `# USB Term 2.0 / F4HWN Labs v6.3.0`, `# RX 145.50000 MHz  -97 dBm`, `# BAT 7.85 V  lost 0` |
 | `/ping` | `# pong` (uygulama açık mı testi) |
 | `/beep` | Telsiz bip çalar, `# beep` |
 | `/clear` | Telsiz ekranındaki geçmişi siler, `# clear` |
@@ -172,7 +180,7 @@ satırları telsiz ekranında gösterilmez; yanıtlar `# ` ile başlar.
 - Düz metin, satır sonu `CR`, `LF` ya da `CR LF`. Telsiz `CR LF` gönderir.
 - Telsizin her yanıt satırı `# ` ile başlar; diğer satırlar telsizde yazılan
   mesajlardır. Port her açıldığında (DTR yükselince) telsiz
-  `# USB Term 1.0 ready - /help` satırını gönderir ve echo'yu yeniden açar.
+  `# USB Term 2.0 ready - /help` satırını gönderir ve echo'yu yeniden açar.
 - **Echo** (varsayılan açık): telsiz aldığı baytları geri gönderir, geri silme
   (`BS`/`DEL`) için `BS SP BS` yollar. Satır tabanlı bir program bağlanınca
   önce `/echo off` göndermeli (yanıt: `# echo off`).
@@ -210,7 +218,7 @@ Telsizden gelen satırları bir betiğe bağlamak da mümkün (ör. telsizden
   henüz yok.
 - Geçmiş telsizin RAM'inde tutulur, uygulamadan çıkınca silinir. Sadece giriş
   modu ve `BEEP` ayarı kaydedilir.
-- Ekranda yalnız ASCII görünür (3×5 font).
+- Ekranda yalnız ASCII görünür.
 
 ## Derleme
 
@@ -226,7 +234,7 @@ Docker ile (deponun kökünde):
 cd App/apps/usbterm && ./build.sh
 ```
 
-Çıktı: `App/apps/usbterm/USBTerm.app` (3016 B / 4096 B overlay + 557 B varlık).
+Çıktı: `App/apps/usbterm/USBTerm.app` (3084 B / 4096 B overlay + 557 B varlık).
 
 ## Testler
 
@@ -238,11 +246,11 @@ python3 App/apps/usbterm/test/test_term.py
 python3 tools/uvterm/test_uvterm.py
 ```
 
-- `test/test_term.py` uygulamayı bilgisayar için sahte bir `app_api_t` ile
-  derler (`test/host_term.c`, gerçek 3×5 font) ve 49 kontrol çalıştırır:
-  echo, satır sonları, geri silme, ANSI dizileri, UTF-8 dönüşümü, satır
-  kaydırma, tüm komutlar, çoklu basış, uzun basış, modlar, `EXIT`, ayarların
-  kaydı, geri kaydırma. Ayrıca **uçtan uca**: gerçek uygulama kodu ile
+- `test/test_term.py` uygulamayı bilgisayar için ortak sahte firmware
+  API'siyle (`App/apps/host_mock.h`, firmware'in kendi fontları) derler ve 54
+  kontrol çalıştırır: echo, satır sonları, geri silme, ANSI dizileri, UTF-8
+  dönüşümü, satır kaydırma, tüm komutlar, çoklu basış, uzun basış, modlar,
+  `EXIT`, ayarların kaydı, geri kaydırma, iki satırlık yazma alanı. Ayrıca **uçtan uca**: gerçek uygulama kodu ile
   `uvterm.py` bir sanal seri port (pty) üzerinden konuşur. Ekran taklitlerini
   `test/out/*.png` olarak çizer.
 - `tools/uvterm/test_uvterm.py` (29 kontrol) `uvterm.py`'nin yükleme/listeleme kodunu,

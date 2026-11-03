@@ -6,7 +6,7 @@ set -euo pipefail
 
 APP="$(basename "$PWD")"            # usbterm
 APP_NAME="USB Term"                 # human label baked into the 64-byte header
-APP_VER="1.0"
+APP_VER="2.0"
 APP_API_MIN=3                       # serial_read / serial_write / serial_ctl
 APP_VMA=${APP_VMA:-0x20000280}      # pinned overlay VMA (Core/py32f071xb.ld)
 OUT="${APP_NAME// /}"               # USBTerm.app

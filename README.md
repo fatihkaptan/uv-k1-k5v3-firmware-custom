@@ -154,7 +154,10 @@ typed on the keypad go to the computer, and `/info`, `/beep`, `/clear` query or
 drive the radio. Its computer side is `tools/uvterm/uvterm.py`, which also lists
 and installs overlay apps from a terminal. See `App/apps/usbterm/README.md` and
 the Turkish guide to building and installing Labs apps,
-`App/apps/LABS_UYGULAMA_KILAVUZU.md`.
+`App/apps/LABS_UYGULAMA_KILAVUZU.md`. Telsiz Okulu (Labs, this fork) teaches
+amateur radio in Turkish on the radio: a quiz, Q code cards, a phonetic
+speller, the band plan of the VFO frequency and antenna lengths
+(`App/apps/telsizokulu/README.md`).
 
 APRS RX receives AX.25 UI frames using Bell 202 AFSK at 1200 baud, displays
 common position formats and Mic-E data, and keeps a five-frame history. APRS TX
