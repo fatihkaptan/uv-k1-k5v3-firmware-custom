@@ -162,9 +162,12 @@ messages between radios running it over the BK4819 FSK modem on the VFO,
 signed with a shared key and acknowledged, with an optional encrypted mode
 and a USB bridge (`tools/rfmesaj/rfkopru.py`: Telegram, automatic answers);
 see `App/apps/rfmesaj/README.md`. Muzik Kutusu (Labs, this fork) turns the
-speaker into a one-voice instrument: built-in public-domain tunes, the keypad
-as a two-octave piano with a recording kept across restarts, and MIDI over USB
-(`tools/muzik/muzik.py` plays .mid files and MIDI keyboards, records to .mid);
+radio into a one-voice instrument: Turkish folk songs and hicaz pieces in
+53-TET makam pitches (derived from SymbTr, CC BY-NC-SA 4.0), the keypad as a
+two-octave piano with a recording kept across restarts, MIDI over USB
+(`tools/muzik/muzik.py` plays .mid files and MIDI keyboards, records to .mid,
+and embeds a .mid as a song of the app), and an opt-in mode that plays on the
+active VFO instead of the speaker (off at start, 3 min time-out);
 see `App/apps/muzikkutusu/README.md`. Anten Lab (Labs, this fork) measures
 the radiation pattern of a directional antenna with the RSSI (REG_67, half-dB):
 step or continuous-turn modes, a polar plot with beam, front/back and -3 dB

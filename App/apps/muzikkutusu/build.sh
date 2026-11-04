@@ -6,7 +6,7 @@ set -euo pipefail
 
 APP="$(basename "$PWD")"            # usbterm
 APP_NAME="Muzik Kutusu"             # human label baked into the 64-byte header
-APP_VER="1.1"
+APP_VER="2.0"
 APP_API_MIN=3                       # serial_*, append_u32
 APP_VMA=${APP_VMA:-0x20000280}      # pinned overlay VMA (Core/py32f071xb.ld)
 OUT="${APP_NAME// /}"               # MuzikKutusu.app
@@ -19,7 +19,7 @@ command -v "$CC" >/dev/null 2>&1 || { echo "❌ ARM compiler not found: $CC"; ex
 command -v "$OBJCOPY" >/dev/null 2>&1 || { echo "❌ ARM objcopy not found: $OBJCOPY"; exit 1; }
 
 CFLAGS="-mcpu=cortex-m0plus -mthumb -Os -std=gnu11 -ffreestanding -fno-builtin -fno-common \
-  -fomit-frame-pointer -ffunction-sections -fdata-sections -Wall -Wextra -fno-jump-tables -fno-move-loop-invariants"
+  -fomit-frame-pointer -ffunction-sections -fdata-sections -Wall -Wextra -fno-jump-tables -fno-move-loop-invariants -fno-inline-small-functions"
 LDFLAGS="-nostdlib -nostartfiles -T app.ld -Wl,--defsym,APP_VMA=${APP_VMA} \
   -Wl,--gc-sections -Wl,-Map=${APP}.map -Wl,--build-id=none -Wl,--no-warn-rwx-segments"
 

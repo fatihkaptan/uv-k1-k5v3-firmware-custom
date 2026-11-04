@@ -1,32 +1,126 @@
-# Müzik Kutusu 1.0 — telsizin hoparlöründe melodi, piyano ve MIDI
+# Müzik Kutusu 2.0 — türküler, hicaz, piyano, MIDI ve VFO'da yayın
 
-**Müzik Kutusu**, telsizin hoparlörünü tek sesli bir çalgıya çevirir:
-hazır melodiler, tuş takımıyla **piyano** (tuş basılı kaldıkça nota uzar),
-**kayıt** (kapatıp açınca kaybolmaz) ve USB üzerinden bilgisayardan
-**MIDI**: `.mid` dosyası çalma, MIDI klavyeyle canlı çalma, telsizde
-çaldığınızı `.mid` olarak kaydetme ([`tools/muzik/muzik.py`](../../../tools/muzik/README.md)).
+**Müzik Kutusu**, telsizi tek sesli bir çalgıya çevirir:
+- Makam perdeleriyle (53-TET koma) **türküler ve hicaz**.
+- Tuş takımıyla **piyano**, kapatıp açınca kaybolmayan bir **kayıtla**.
+- USB üzerinden bilgisayardan **MIDI**: `.mid` çalma, MIDI klavye ve `.mid`'i
+  uygulamaya **gömme** ([`tools/muzik/muzik.py`](../../../tools/muzik/README.md)).
 
-Telsiz **hiçbir şey yayınlamaz**: ses yalnızca hoparlörden çıkar (amatör
-bantlarda müzik yayını yasaktır).
+Sürüm 2.0 iki şey getiriyor:
+- **Yayın:** menüde açılınca müzik hoparlör yerine **aktif VFO'dan
+  yayınlanır**.
+- **Liste:** eski batı melodileri çıkarıldı, listede yalnızca türküler var.
 
 ![Müzik Kutusu ekranları](images/muzikkutusu-ekranlar.png)
 
-*(Menü, melodi listesi, çalar, piyano — test düzeneğinin çizdiği taklitler: `test/test_muzik.py`.)*
+*(Şarkı listesi, VFO'da çalarken, yayın açık menü, piyano: test düzeneğinin
+çizdiği taklitler, `test/test_muzik.py`.)*
 
 ## Bölümler
 
 | | |
 |---|---|
-| **1 Şarkılar** | 19 şarkı. **Türküler ve hicaz** (53-TET koma perdeleriyle, gerçek makam sesi): Beyaz Giyme (Bolu, segah), Üsküdar'a Gider İken (nihavent), Çayelinden Öteye, Bitlis'te Beş Minare, Kırmızı Gülün Alı Var, Erkilet Güzeli (hicaz), Çanakkale İçinde (neva), Sarı Gelin, Hey Onbeşli, Ceddin Deden (hüseyni), Gesi Bağları (beyati). Ardından: Daha Dün Annemiz, Neşe Marşı, Für Elise, İyi ki Doğdun, Jingle Bells, Tembel Çocuk, Menuet, CQ CQ (Mors). Listede seçilinin makamı; çalarken nota (`F5#3` = Fa'nın 3 koma dieziyle), BPM, makam ve Hz. `1`–`9` doğrudan çalar, `UP`/`DOWN` seçer; çalarken tempo (%50–%200). |
-| **2 Piyano** | Tuş takımı iki oktavlık bir klavye: `1`–`0` = do re mi fa sol la si do re mi, `*` sonraki notayı diyez yapar, `UP`/`DOWN` oktav (3–6). Ekranda notanın adı (büyük), frekansı, oktav ve tuş numaralı klavye. |
-| **Kayıt** | Piyanoda `MENU` kaydı başlatır/bitirir (notalar ve aradaki sessizlikler, 20 ms çözünürlük, 255 olay). `F` kaydı çalar. Çıkışta saklanır, sonraki açılışta geri gelir. |
-| **3 Ses** | 5 seviye (`###..`), her basışta bir örnek nota. |
-| **USB** | Bilgisayardan `n<nota>` (MIDI numarası, 60 = do4) çalar, `x` susturur; menüdeyken piyano ekranı açılır. Piyanoda çalınan notalar bilgisayara aynı biçimde gider. |
+| **1 Şarkılar** | 11 türkü, makam perdeleriyle (gerçek koma aralıkları):<br>• **Hicaz:** Çayelinden Öteye, Bitlis'te Beş Minare, Kırmızı Gülün Alı Var, Erkilet Güzeli<br>• **Segah:** Beyaz Giyme (Bolu)<br>• **Nihavent:** Üsküdar'a Gider İken<br>• **Neva:** Çanakkale İçinde<br>• **Hüseyni:** Sarı Gelin, Hey Onbeşli, Ceddin Deden<br>• **Beyati:** Gesi Bağları<br>Seçili şarkının makamı üstteki kapsülde görünür. Çalarken ekranda nota, BPM, ilerleme ve klavye var. Nota adı makam yazımıyla verilir: `F5#3` = fa, 3 koma diyez; `B4b1` = si, 1 koma bemol. |
+| **2 Piyano** | Tuş takımı iki oktavlık bir klavyedir: `1`–`0` = do re mi fa sol la si do re mi. `*` sonraki notayı diyez yapar, `UP`/`DOWN` oktavı değiştirir (3–6). Ekranda nota (büyük), frekans (Hz) ve oktav görünür. |
+| **Kayıt** | Piyanoda `MENU` kaydı başlatır ve bitirir: notalar ve aradaki sessizlikler, 20 ms çözünürlük, en çok 255 olay. `F` kaydı çalar. Kayıt çıkışta saklanır. |
+| **3 Ses** | 5 seviye. Her basışta hoparlörden bir örnek nota çalar. |
+| **4 Yayın** | `kapali` / `VFO`. Ayrıntılar aşağıda. |
+| **USB** | `n<nota>` (MIDI numarası, 60 = do4) bir notayı başlatır, `x` susturur. Piyanoda çalınan notalar bilgisayara aynı biçimde gider. |
 
-Melodiler kamu malıdır (geleneksel ya da 100 yılı aşkın eserler). Kendi
-melodinizi `gen_assets.py` içindeki `SONGS` listesine metinle ekleyin:
-`"C4/4 D#4/2 R/1"` = nota + oktav, `/` sonrası on altılık cinsinden süre,
-`R` sus. Örneğin Bolu türkülerinizi buraya yazıp yeniden derleyebilirsiniz.
+## Yayın: aktif VFO'da müzik
+
+Menüde **4 Yayın: VFO** seçilince şarkılar, piyano ve USB'den gelen MIDI
+hoparlör yerine **aktif VFO'nun frekansında FM olarak yayınlanır**:
+- Yayın VFO'nun gücü ve CTCSS/DCS'iyle yapılır; Ton Çağrı uygulamasının
+  kullandığı yolun aynısıdır.
+- Durum çubuğunda `TX` yazar, LED yanar.
+- İlk notadan önce 300 ms taşıyıcı verilir, böylece karşı tarafın
+  susturucusu açılır.
+- Verici, son notadan 2 s sonra bırakılır.
+
+Güvenlik için:
+- Yayın her açılışta **kapalı** başlar ve kaydedilmez.
+- Firmware izin vermezse müzik hoparlörden çalar. Bunun nedenleri: yayın
+  yasağı olan bant (TX kilidi), düşük ya da fazla yüksek pil, FM dışı
+  modülasyon.
+- Menüdeki ses örneği her zaman hoparlörden çalar.
+- **3 dakika** kesintisiz yayından sonra verici bırakılır ve yayın kendiliğinden
+  kapanır.
+
+> **Yasal not:** Amatör bantlarda müzik yayını (ITU Radyo Tüzüğü md. 25 ve
+> BTK amatör telsiz yönetmeliği) ve PMR446'da müzik yasaktır. Bu modu
+> yalnızca sahte yükte (dummy load), kendi test düzeneğinde ya da müziğe
+> izin verilen bir frekans ve lisansla kullanın; sorumluluk kullanıcıdadır.
+> Telifli eserleri yayınlamak ayrıca telif hakkını da ihlal eder.
+
+## Kendi şarkıların (Kurtlar Vadisi vb.)
+
+Telifli eserler uygulamayla dağıtılmaz. Sahip olduğun bir MIDI dosyasını
+kendi telsizin için uygulamaya gömebilirsin:
+
+```bash
+python3 tools/muzik/muzik.py gom kurtlarvadisi.mid --baslik "Kurtlar Vadisi" --sure 40
+```
+
+```bash
+./compile-app.sh muzikkutusu
+```
+
+```bash
+python3 tools/uvterm/uvterm.py install App/apps/muzikkutusu/MuzikKutusu.app
+```
+
+`gom` şöyle çalışır:
+- Melodiyi çıkarır: her an çalan en tiz nota alınır, davul kanalı atlanır.
+- Notaları 1/32'lik ızgaraya oturtur, oktavları do3–do7 aralığına katlar.
+- Sonucu `sarkilar/kendi.txt` dosyasına yazar. Bu dosya git'e girmez ve
+  şarkıları listenin başına gelir.
+
+Seçenekler:
+- `--bas`/`--sure`: dosyanın bir bölümünü (saniye) alır.
+- `--kanal`: melodinin bulunduğu MIDI kanalını seçer.
+- `--transpoze`, `--hiz`, `--bpm`: perdeyi ve tempoyu ayarlar.
+- `--makam`: üst kapsülde görünecek etiketi verir.
+- Aynı başlıkla yeniden gömmek eskisinin yerine yazar.
+
+Bir şarkının sınırları:
+- En çok 255 nota, 15 farklı perde, 16 farklı uzunluk. Sınıra gelen
+  şarkıyı `gom` keser ve nedenini söyler.
+- Varlık alanı dolarsa `gen_assets.py`, listenin sonundaki şarkıları
+  uyarıyla çıkarır.
+
+`kendi.txt` elle de yazılabilir; biçim `gen_assets.py` dosyasının başında
+anlatılıyor. Bir şarkı başlık satırıyla başlar, notalar onu izler:
+
+```text
+= Baslik | Makam | BPM
+C#4/8 B4b1/16 C5#4/8. R/4 A4*5/8
+```
+
+- `C#4`: eşit aralıklı nota.
+- `B4b1`, `C5#4`: 53-TET nota. Doğal notadan sonra kaç koma diyez (`#`)
+  ya da bemol (`b`) olduğu yazılır.
+- Uzunluk: `/8` sekizlik, `/8.` noktalı sekizlik, `*5/8` beş sekizlik.
+
+## Türkülerin kaynağı ve lisansı
+
+Türküler [SymbTr](https://github.com/MTG/SymbTr) veritabanından türetildi
+(M. Kemal Karaosmanoğlu, *A Turkish makam music symbolic database for music
+information retrieval: SymbTr*, ISMIR 2012). Bu yüzden SymbTr'nin lisansı
+olan **CC BY-NC-SA 4.0** (ticari olmayan, aynı lisansla paylaş) altındadır:
+`sarkilar/turkuler.txt` ve onu içeren `.app`.
+
+Ne alındı:
+- Yalnızca anonim türküler ve bestecisi 70 yıldan uzun süre önce ölmüş
+  eserler. Ceddin Deden: Kaptanzade Ali Rıza Bey, ölümü 1934.
+- Yalnızca perde ve süre, söz yok.
+- Her eserin ilk kıtası, ilk söylenen heceden başlayarak.
+
+Dosyayı yeniden üretmek için:
+
+```bash
+python3 tools/muzik/symbtr2kutu.py SymbTr/txt > App/apps/muzikkutusu/sarkilar/turkuler.txt
+```
 
 ## Kurulum
 
@@ -37,40 +131,55 @@ melodinizi `gen_assets.py` içindeki `SONGS` listesine metinle ekleyin:
 python3 tools/uvterm/uvterm.py install App/apps/muzikkutusu/prebuilt/MuzikKutusu.app
 ```
 
-**F + 7** → Apps → **Muzik Kutusu**.
+Uygulamayı açmak için: **F + 7** → Apps → **Muzik Kutusu**.
 
 ## Tuşlar
 
 | Yer | Tuş | İşlev |
 |---|---|---|
-| Menü | `1`–`3`, `UP`/`DOWN` + `MENU` | Bölüm seç; `3` sesi bir kademe artırır |
-| | `EXIT` | Çıkış |
-| Şarkılar | `UP`/`DOWN` | Şarkı seç; çalarken tempo |
-| | `MENU` ya da `1`–`8` | Çal / dur |
-| | `EXIT` | Dur, sonra menü |
+| Menü | `1`–`4`, `UP`/`DOWN` + `MENU` | Bölüm seç. `3` sesi bir kademe artırır, `4` yayını açar/kapatır |
+| | `EXIT` | Çıkış (verici bırakılır) |
+| Şarkılar | `UP`/`DOWN` | Şarkı seç. Çalarken tempoyu değiştirir (%50–%200) |
+| | `MENU` ya da `1`–`9` | Çal / dur |
+| | `EXIT` | Dur, sonra menüye dön |
 | Piyano | `1`–`0` | Nota (basılı tuttukça çalar) |
-| | `*` | Sonraki nota diyez (durum çubuğunda `#`) |
+| | `*` | Sonraki nota diyez |
 | | `UP`/`DOWN` | Oktav |
 | | `MENU` | Kayıt başlat / bitir (`REC`) |
-| | `F` | Kaydı çal / durdur (`CAL`) |
-| | `EXIT` | Menü |
+| | `F` | Kaydı çal / durdur |
+| | `EXIT` | Menüye dön |
 
 ## Nasıl çalışıyor
 
-- Ses, firmware'in kendi bip yolu: `prepare_tone` (ton üretecini ve
-  hoparlör yolunu hazırlar), REG_71'e notanın frekansı, REG_50 susturucusu
-  `tx_mute` ile açılıp kapanır. Engellemeyen bu kullanım sayesinde notalar
-  zamanında başlar, istenen kadar sürer; 2 s sessizlikte amfi kapanır.
-  (Firmware'in `play_tone` servisi süre boyunca bekler; piyano için uygun değil.)
-- Ton tablosu (do3–do7) `gen_assets.py` içinde firmware'in `scale_freq()`
-  formülüyle hesaplanır.
-- Melodi notaları %12.5 erken kesilir (art arda aynı notalar ayrı duyulsun).
-- **Kalıcı kayıt:** uygulama `--save-screen` bayrağıyla paketlenir. Çıkışta
-  kaydı durum çubuğu ve ekran tamponuna (1024 B) yazar; yükleyici bu
-  tamponları varlıkların son 1024 baytına saklar, sonraki açılışta uygulama
-  `asset_read` ile geri okur. Kayıt yoksa da boş bir blok yazılır (yoksa ekran
-  görüntüsü kayıt sanılırdı).
-- Kod 3564 B (4096 B overlay), varlıklar 2185 B (1024'ü kayıt alanı).
+**Şarkı biçimi:**
+- Her şarkı kendi perde paletini (en çok 15 perde) ve uzunluk tablosunu
+  (ms cinsinden) taşır.
+- Her nota tek bayttır: üst 4 bit perde, alt 4 bit uzunluk.
+- Perdeler ya piyanonun eşit aralıklı tablosundan (do3–do7) ya da
+  koma tablosundan gelir. Koma tablosu her perde için REG_71 değerini, en
+  yakın klavye tuşunu ve adı tutar.
+- Koma frekansı: 440 · 2^((k−305)/53) Hz. REG_71 = Hz × 1353245 / 2¹⁷;
+  koma perdeleri bu değere yuvarlanmadan hesaplanır.
+
+**Hoparlörde çalma:**
+- Firmware'in bip yolu kullanılır: `prepare_tone`, REG_71'e notanın
+  frekansı, susturucu (REG_50) `tx_mute` ile açılıp kapanır.
+- Bu yol beklemez, bu yüzden notalar zamanında başlar ve istenen kadar
+  sürer.
+- 2 s sessizlikten sonra amfi kapanır.
+
+**Yayında çalma:**
+- Verici şöyle açılır: `tx_state` izni sorulur, sonra `tx_set_params`,
+  REG_70 = 0xC200 (TONE1, kazanç 66), REG_30 = TX bağlantısı.
+- Notalar REG_71 ve `tx_mute` ile modüle edilir.
+- Kapanış Ton Çağrı uygulamasıyla aynıdır: REG_30 boşta, `tx_end`.
+
+**Kalıcı kayıt:** uygulama `--save-screen` bayrağıyla paketlenir. Çıkışta
+kaydı ekran tamponlarına yazar, yükleyici bu tamponları varlıkların son
+1024 baytına saklar.
+
+**Boyut:** kod 4064 B (4096 B overlay). Varlıklar 2912 B; bunun 1024 B'ı
+kayıt alanı, yaklaşık 900 B'ı da kendi şarkıların için boş.
 
 ## Derleme ve testler
 
@@ -83,31 +192,14 @@ python3 App/apps/muzikkutusu/test/test_muzik.py
 ```
 
 Test, çalınan notaları BK4819 yazmalarından (REG_71 = perde) ve susturucu
-anahtarlamasından (başlangıç/bitiş, ms) yeniden kurar: ilk üç melodinin her
-notası perde ve ±15 ms zamanlamayla, diğerleri sırayla doğrulanır; tempo,
-basılı tutulan tuş süreleri, diyez, oktav sınırları, kayıt ve çalma, **yeniden
-başlatmadan sonra kaydın geri gelmesi** (yükleyicinin sakladığı blok taklit
-edilerek), USB `n`/`x` protokolü, ses seviyesi ve amfinin kapanması (28 kontrol).
-Gerçek telsizde henüz denenmedi.
+anahtarlamasından (ms) yeniden kurar. 39 kontrol var:
+- İlk üç türkünün her notası, perde ve ±15 ms zamanlamayla; diğerleri
+  sırayla.
+- Tempo, piyano, kayıt, yeniden başlatmadan sonra kaydın geri gelmesi,
+  USB protokolü, ses seviyesi.
+- Yayın: verici açılış sırası, ilk notadan önceki 300 ms taşıyıcı, şarkının
+  tamamının yayında çalması, 2 s sonra bırakma, firmware reddedince
+  hoparlöre dönme, menüdeki ses örneğinin hoparlörde kalması, 3 dakikalık
+  zaman aşımı.
 
-## Türküler, hicaz ve kendi şarkıların
-
-Şarkılar `sarkilar/` altındaki metin dosyalarından derlenir (biçim:
-`gen_assets.py` başı): `kendi.txt` (senin, git'e girmez), `turkuler.txt`,
-`klasik.txt`. Nota `C#4/8` (eşit aralık) ya da `B4b1/16`, `C5#4/8.`
-(53-TET: doğalı kaç koma diez/bemol), uzunluk `/8` sekizlik, `/8.` noktalı,
-`*5/8`. Şarkı başına en çok 255 nota, 15 perde, 16 uzunluk; yer kalmazsa
-sondaki şarkılar uyarıyla çıkarılır.
-
-**Türküler** [SymbTr](https://github.com/MTG/SymbTr) veritabanından
-türetildi (M. Kemal Karaosmanoğlu, *A Turkish makam music symbolic database
-for music information retrieval: SymbTr*, ISMIR 2012) ve onun lisansıyla,
-**CC BY-NC-SA 4.0** (ticari olmayan, aynı lisansla paylaş) altındadır:
-`sarkilar/turkuler.txt` ve onu içeren `.app`. Yalnızca anonim türküler ve 70
-yılı aşkın besteler, yalnızca perde ve süre (söz yok). Yeniden üretmek:
-`python3 tools/muzik/symbtr2kutu.py SymbTr/txt > sarkilar/turkuler.txt`.
-
-**Kurtlar Vadisi** gibi telifli eserler uygulamaya gömülmez. Kendi MIDI
-dosyanı `python3 tools/muzik/muzik.py cal dosya.mid` ile PC'den çalabilir
-ya da notalarını `sarkilar/kendi.txt`'ye yazıp kendin için derleyebilirsin
-(dosya git'e girmez, listenin başına gelir).
+Gerçek telsizde henüz denenmedi. **Yayın modunu ilk kez sahte yükte deneyin.**

@@ -15,16 +15,21 @@
  */
 
 /*
- * Muzik Kutusu - a music box on the radio's speaker. API level 3, nothing is
- * ever transmitted (playing music on the air is not allowed). See README.md.
+ * Muzik Kutusu - a music box on the radio's speaker, or on the air on the
+ * active VFO when menu 4 (Yayin) is switched on. API level 3. See README.md.
  *
- *   1 Sarkilar   turkuler (53-TET komas) and public-domain tunes, tempo adjustable
+ *   1 Sarkilar   Turkish songs in 53-TET komas, tempo adjustable
  *   2 Piyano     the keypad is a two-octave keyboard (1-0 = C D E F G A B C
  *                D E, * sharp, UP/DOWN octave); a note sounds as long as its
  *                key is held; MENU records, F plays the recording back. The
  *                recording survives restarts: at exit it is written into the
  *                display buffers, which the loader keeps (APP_FLAG_SAVE_SCREEN)
  *   3 Ses        five volume levels
+ *   4 Yayin      off at every start; on: songs, piano and USB notes key up
+ *                the active VFO (its power, CTCSS/DCS) instead of the speaker,
+ *                as the Tone Call app does; unkeyed 2 s after the last note,
+ *                when the firmware refuses (band, battery) the speaker plays,
+ *                and after TX_MAX_MS of transmission yayin switches off
  *   USB          "n<MIDI note>" plays a note, "x" stops it (the computer side,
  *                tools/muzik/muzik.py, plays .mid files and MIDI keyboards);
  *                notes played on the keypad go to the computer the same way
@@ -52,21 +57,28 @@
 #define KB_Y1     55u
 #define REG_70    0x70
 #define REG_71    0x71
+#define REG_30    0x30
+#define REG_30_TX_LINK 0xC3FAu /* BK4819_EnableTXLink                       */
+#define REG_30_IDLE    0xC1FEu /* as BK4819_PlaySingleTone leaves it        */
+#define REG_70_TONE1   0xC200u /* TX: TONE1 on, tuning gain 66              */
+#define TX_LEAD_MS 300u   /* carrier before the first note: squelches open  */
+#define TX_MAX_MS  180000u /* time-out: yayin off after 3 min on the air     */
 #define NONE      0xFFu
 
 enum { V_MENU, V_SONGS, V_PIANO };
 enum { S_NONE, S_SONG, S_REC };
+enum { A_OFF, A_SPEAKER, A_TX };
 
 typedef struct { uint8_t magic, vol, oct, song; } cfg_t;
 typedef struct { uint16_t magic; uint8_t n, pad; uint8_t ev[2u * NREC]; } rec_t;   /* the saved block */
 
 static struct {
-    uint8_t  view, sel, cur, last, raw, key, src, pos, len, bpm, kn, tempo, rxLen, played;
-    bool     held, dirty, quit, saver, sharp, rec, host, audio, cr, pc;
+    uint8_t  view, sel, cur, last, raw, key, src, pos, len, bpm, kn, tempo, rxLen, played, audio;
+    bool     held, dirty, quit, saver, sharp, rec, host, tx, cr, pc;
     cfg_t    cfg;
     const app_api_t *A;
     rec_t   *R;                        /* on app_main's stack                    */
-    uint32_t now, keyT, evAt, gapAt, recT, idleT, batT;
+    uint32_t now, keyT, evAt, gapAt, recT, idleT, batT, txT;
     uint16_t notes, pal, dur, reg;     /* song: notes, pitches, lengths; REG_71  */
     char     rx[8];
 } g;
@@ -86,6 +98,10 @@ static char *putT(char *o, uint16_t off) { char t[TEXT_MAX]; return put(o, T(t, 
 static char *putu(char *o, uint32_t u) { o = g.A->append_u32(o, u); *o = '\0'; return o; }
 static uint8_t slen(const char *s) { uint8_t n = 0; while (s[n]) n++; return n; }
 static bool due(uint32_t t) { return (int32_t)(g.now - t) >= 0; }
+static uint8_t rd8(uint16_t off) { uint8_t b; g.A->asset_read(off, &b, 1); return b; }
+static uint16_t songAt(uint8_t i) {             /* asset offset of song i */
+    uint16_t o; g.A->asset_read((uint16_t)(SONG_OFF + 2u * i), &o, 2); return (uint16_t)(SONG + o);
+}
 
 /* ---- USB ---- */
 static void send(const char *s) {
@@ -108,10 +124,41 @@ static void noteOff(void) {
     g.A->tx_mute(true);
     g.cur = 0; g.idleT = g.now; g.dirty = true;
 }
+static void quiet(void) {                       /* speaker off / unkey, back to RX */
+    const app_api_t *A = g.A;
+    if (g.audio == A_TX) {                      /* as the Tone Call app ends a call */
+        A->bk_write(REG_70, 0);
+        A->bk_write(REG_30, REG_30_IDLE);
+        A->tx_mute(true);
+        A->tx_end();
+        A->led(false);
+    } else if (g.audio) {
+        A->tones_off_rx();
+        A->audio_path(false);
+    }
+    g.audio = A_OFF;
+}
+/* The speaker, or the active VFO when yayin is on (not in the menu: the
+ * volume sample stays local) and the firmware allows it right now. */
 static void tone(uint16_t r, uint8_t n) {       /* REG_71 value, the key drawn */
-    if (!g.audio) { g.A->prepare_tone(); volume(); g.A->audio_path(true); g.audio = true; }
-    g.A->bk_write(REG_71, r);
-    g.A->tx_mute(false);
+    const app_api_t *A = g.A;
+    const uint8_t want = g.tx && g.view != V_MENU && !A->tx_state() ? A_TX : A_SPEAKER;
+    if (g.audio != want) {
+        quiet();
+        if (want == A_TX) {                     /* key up: carrier, PA, CTCSS/DCS */
+            A->tx_set_params();
+            A->tx_mute(true);
+            A->set_af(APP_AF_MUTE);
+            A->bk_write(REG_70, REG_70_TONE1);
+            A->bk_write(REG_30, REG_30_TX_LINK);
+            A->led(true);
+            A->delay_ms(TX_LEAD_MS);
+            g.evAt += TX_LEAD_MS; g.txT = g.now;
+        } else { A->prepare_tone(); volume(); A->audio_path(true); }
+        g.audio = want;
+    }
+    A->bk_write(REG_71, r);
+    A->tx_mute(false);
     g.reg = r; g.cur = g.last = n; g.dirty = true;
 }
 static void noteOn(uint8_t n) {
@@ -126,17 +173,10 @@ static void noteOn(uint8_t n) {
 static void pitchOn(uint8_t p) {                /* a song's pitch: piano note or 53-TET */
     if (p < NTONE) { noteOn((uint8_t)(NOTE_LO + p)); return; }
     p = (uint8_t)(p - NTONE);
-    uint16_t r; uint8_t n;
+    uint16_t r;
     g.A->asset_read((uint16_t)(KREG + 2u * p), &r, 2);
-    g.A->asset_read((uint16_t)(KMIDI + p), &n, 1);
     g.kn = (uint8_t)(p + 1u);
-    tone(r, n);
-}
-static void quiet(void) {                       /* amplifier off, back to RX */
-    if (!g.audio) return;
-    g.A->tones_off_rx();
-    g.A->audio_path(false);
-    g.audio = false;
+    tone(r, rd8((uint16_t)(KMIDI + p)));
 }
 
 /* ---- sequencer: a song from the assets or the recording ---- */
@@ -146,12 +186,11 @@ static void seqStart(uint8_t src) {
     g.src = src; g.pos = 0; g.evAt = g.now; g.gapAt = 0; g.dirty = true;
     if (src == S_REC) { g.len = g.R->n; return; }
     uint8_t h[5];
-    uint16_t off;
-    g.A->asset_read((uint16_t)(SONG_OFF + 2u * g.cfg.song), &off, 2);
-    g.A->asset_read((uint16_t)(SONG + off), h, 5);
+    const uint16_t at = songAt(g.cfg.song);
+    g.A->asset_read(at, h, 5);
     g.bpm = h[0]; g.len = h[1];
     char t[TEXT_MAX];
-    g.pal = (uint16_t)(SONG + off + 5u + slen(T(t, (uint16_t)(SONG + off + 5u))) + 1u);
+    g.pal = (uint16_t)(at + 5u + slen(T(t, (uint16_t)(at + 5u))) + 1u);
     g.dur = (uint16_t)(g.pal + h[3]);
     g.notes = (uint16_t)(g.dur + 2u * h[4]);
 }
@@ -162,16 +201,13 @@ static void seqStep(void) {
     if (g.pos >= g.len) { seqStop(); return; }
     uint32_t ms;
     if (g.src == S_SONG) {
-        uint8_t e, p = 0;
+        const uint8_t e = rd8((uint16_t)(g.notes + g.pos));
         uint16_t d;
-        g.A->asset_read((uint16_t)(g.notes + g.pos), &e, 1);
         g.A->asset_read((uint16_t)(g.dur + 2u * (e & 15u)), &d, 2);
         ms = (uint32_t)d * 100u / g.tempo;
-        if ((e >> 4) == 15u) noteOff();
-        else { g.A->asset_read((uint16_t)(g.pal + (e >> 4)), &p, 1); pitchOn(p); }
+        if ((e >> 4) == 15u) noteOff(); else pitchOn(rd8((uint16_t)(g.pal + (e >> 4))));
         g.evAt += ms;
-        /* a song's notes are detached: silent for the last eighth of each */
-        if ((e >> 4) != 15u) g.gapAt = g.evAt - ms / 8u;
+        g.gapAt = g.evAt - ms / 8u;             /* detached: silent for the last eighth */
     } else {
         noteOn(g.R->ev[2u * g.pos]);
         g.evAt += (uint32_t)g.R->ev[2u * g.pos + 1u] * REC_UNIT;
@@ -282,11 +318,12 @@ static void onPress(uint8_t k) {
     if (g.view == V_PIANO) { pianoKey(k); return; }
     if (g.view == V_SONGS) { songKey(k); return; }
     if (k == APP_KEY_EXIT) { g.quit = true; return; }
-    if (k == APP_KEY_UP) g.sel = g.sel ? (uint8_t)(g.sel - 1u) : 2u;
-    else if (k == APP_KEY_DOWN) g.sel = g.sel < 2u ? (uint8_t)(g.sel + 1u) : 0;
-    else if (k >= APP_KEY_1 && k <= APP_KEY_3) g.sel = (uint8_t)(k - APP_KEY_1);
-    if (k == APP_KEY_MENU || (k >= APP_KEY_1 && k <= APP_KEY_3)) {
-        if (g.sel == 2u) { g.cfg.vol = (uint8_t)((g.cfg.vol + 1u) % NVOL); noteOn(72); g.gapAt = g.now + 150u; g.src = 0; }
+    if (k == APP_KEY_UP) g.sel = g.sel ? (uint8_t)(g.sel - 1u) : 3u;
+    else if (k == APP_KEY_DOWN) g.sel = g.sel < 3u ? (uint8_t)(g.sel + 1u) : 0;
+    else if (k >= APP_KEY_1 && k <= APP_KEY_4) g.sel = (uint8_t)(k - APP_KEY_1);
+    if (k == APP_KEY_MENU || (k >= APP_KEY_1 && k <= APP_KEY_4)) {
+        if (g.sel == 3u) g.tx = !g.tx;
+        else if (g.sel == 2u) { g.cfg.vol = (uint8_t)((g.cfg.vol + 1u) % NVOL); noteOn(72); g.gapAt = g.now + 150u; g.src = 0; }
         else g.view = (uint8_t)(V_SONGS + g.sel);
     }
 }
@@ -354,50 +391,46 @@ static void keyboard(uint8_t base, uint8_t hl) {
 static void drawMenu(void) {
     char s[24], t[TEXT_MAX];
     title(T(t, T_TITLE));
-    for (uint8_t i = 0; i < 3u; i++) {
+    for (uint8_t i = 0; i < 4u; i++) {
         s[0] = (char)('1' + i); s[1] = ' ';
         char *o = putT(s + 2, (uint16_t)(T_MENU + i * T_MENU_STRIDE));
         if (i == 2u) for (uint8_t v = 0; v < NVOL; v++) *o++ = v <= g.cfg.vol ? '#' : '.';
         *o = '\0';
+        if (i == 3u) putT(o, g.tx ? T_TXON : T_TXOFF);
         g.A->print_normal(s, 0, 0, i);
         if (i == g.sel) for (uint8_t x = 0; x < 128u; x++) g.A->fb[i][x] ^= 0xFFu;
     }
-    g.A->print_tiny(T(t, T_USB), 0, 34, false, true);
+    g.A->print_tiny(T(t, g.tx ? T_TXWARN : T_USB), 0, 42, false, true);
     g.A->print_tiny(T(t, T_HINT), 0, 50, false, true);
 }
 static void drawSongs(void) {
     const app_api_t *A = g.A;
     char s[32], t[TEXT_MAX];
-    uint16_t off;
-    uint8_t mk;
     title(T(t, T_TITLE));
-    A->asset_read((uint16_t)(SONG_OFF + 2u * g.cfg.song), &off, 2);
-    A->asset_read((uint16_t)(SONG + off + 2u), &mk, 1);
+    const uint16_t at = songAt(g.cfg.song);
+    const uint8_t mk = rd8((uint16_t)(at + 2u));
+    /* the makam in the status-line capsule (the frame has no line 7: text
+     * drawn below y 55 lands in the status line) */
+    const uint16_t mko = mk ? (uint16_t)(T_MAKAM + mk * T_MAKAM_STRIDE) : T_PLAY;
     if (!g.src) {                               /* the list: tiny number, title */
         const uint8_t top = g.cfg.song > 6u ? (uint8_t)(g.cfg.song - 6u) : 0;
         for (uint8_t r = 0; r < 7u && top + r < NSONG; r++) {
             const uint8_t i = (uint8_t)(top + r);
-            A->asset_read((uint16_t)(SONG_OFF + 2u * i), &off, 2);
             putu(s, i + 1u);
             A->print_tiny(s, 0, (uint8_t)(8u * r + 1u), false, true);
-            A->print_normal(T(t, (uint16_t)(SONG + off + 5u)), 10, 0, r);
+            A->print_normal(T(t, (uint16_t)(songAt(i) + 5u)), 10, 0, r);
             if (i == g.cfg.song) for (uint8_t x = 0; x < 128u; x++) A->fb[r][x] ^= 0xFFu;
         }
-        A->print_tiny(T(t, (uint16_t)(T_MAKAM + mk * T_MAKAM_STRIDE)), 0, 57, false, true);
+        if (mk) capsule(mko);
         return;
     }
-    capsule(T_PLAY);
-    A->print_normal(T(t, (uint16_t)(SONG + off + 5u)), 0, 0, 0);
+    capsule(mko);
+    A->print_normal(T(t, (uint16_t)(at + 5u)), 0, 0, 0);
     char *o = s;
     if (g.cur) o = put(noteName(s, g.cur), "  ");
     putT(putu(o, (uint32_t)g.bpm * g.tempo / 100u), T_BPM);
     A->print_normal(s, 0, 0, 1);
-    o = putT(s, (uint16_t)(T_MAKAM + mk * T_MAKAM_STRIDE));
-    if (g.cur) hzOf(put(o, "  "));
-    A->print_tiny(s, 0, 57, false, true);
-    fill(0, 126, 17, 21, false);                /* progress bar */
-    fill(1, 125, 18, 20, true);
-    if (g.len) fill(1, (uint8_t)(1u + 124u * g.pos / g.len), 18, 20, true);
+    fill(0, (uint8_t)(126u * g.pos / g.len), 18, 20, false);   /* progress */
     keyboard(60, g.cur);
 }
 static void drawPiano(void) {
@@ -426,6 +459,7 @@ static void draw(void) {
     if (g.view == V_MENU) drawMenu();
     else if (g.view == V_SONGS) drawSongs();
     else drawPiano();
+    if (g.audio == A_TX) g.A->print_inverse("TX", 100, 0, true, true, 108);
     g.A->blit_status();
     g.A->blit_full();
 }
@@ -462,6 +496,7 @@ void app_main(const app_api_t *api) {
         keys();
         seqStep();
         if (g.audio && !g.cur && !g.src && g.now - g.idleT >= IDLE_MS) quiet();
+        if (g.audio == A_TX && g.now - g.txT >= TX_MAX_MS) { g.tx = false; seqStop(); quiet(); }
         if (g.gapAt && !g.src && due(g.gapAt)) { noteOff(); g.gapAt = 0; }   /* the volume sample */
         if (g.now - g.batT >= BAT_MS) { g.batT = g.now; api->battery_sample(); g.dirty = true; }
         api->backlight_update();

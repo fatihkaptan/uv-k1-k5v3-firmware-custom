@@ -9,7 +9,6 @@
 #   sarkilar/kendi.txt     your own (not in git; tools/muzik/muzik.py gom)
 #   sarkilar/turkuler.txt  Turkish songs in komas (derived from SymbTr,
 #                          CC BY-NC-SA 4.0: see the file)
-#   sarkilar/klasik.txt    public-domain melodies
 #
 # Song file format, a line starting with "#" is a comment:
 #   = Title | Makam | BPM          title <= 16 ASCII, makam may be empty,
@@ -28,17 +27,20 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
 from app_assets import Assets, ASSET_MAX
 
-VER = os.environ.get("APP_VER", "1.1")
+VER = os.environ.get("APP_VER", "2.0")
 LO, HI = 48, 96            # the piano's tone table: C3 .. C7
-FILES = ["kendi.txt", "turkuler.txt", "klasik.txt"]
+FILES = ["kendi.txt", "turkuler.txt"]
 SAVE_SIZE = 1024
 a = Assets("MUZIKKUTUSU")
 
 # ---- screens ----
 a.text("T_TITLE", "MUZIK KUTUSU")
-a.table("T_MENU", ["Sarkilar", "Piyano", "Ses: "])
-a.text("T_HINT", "1-3 sec  MENU gir  EXIT cik")
+a.table("T_MENU", ["Sarkilar", "Piyano", "Ses: ", "Yayin: "])
+a.text("T_HINT", "1-4 sec  MENU gir  EXIT cik")
 a.text("T_USB", "USB: PC'den MIDI calar")
+a.text("T_TXWARN", "DIKKAT: aktif VFO'da yayin!")
+a.text("T_TXON", "VFO")
+a.text("T_TXOFF", "kapali")
 a.table("T_NOTE", ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"])
 a.text("T_HZ", " Hz")
 a.text("T_BPM", " BPM")

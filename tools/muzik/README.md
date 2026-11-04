@@ -16,6 +16,8 @@ pip install pyserial
 | `python3 muzik.py canli` | USB **MIDI klavye** → telsiz (son basılı tuş çalar). `pip install mido python-rtmidi` gerekir; `--liste` girişleri gösterir, `--giris AD` seçer |
 | `python3 muzik.py kaydet benim.mid` | Telsizin **Piyano**'sunda çaldıklarınızı `.mid` dosyasına kaydeder (Ctrl+C ile bitir) |
 | `python3 muzik.py bilgi sarki.mid` | Dosyadaki kanallar, nota sayısı, süre |
+| `python3 muzik.py gom sarki.mid --baslik "Ad"` | MIDI'nin melodisini uygulamaya **şarkı olarak gömer**: `App/apps/muzikkutusu/sarkilar/kendi.txt` (git'e girmez). Sonra `./compile-app.sh muzikkutusu` ile derleyip yükleyin. `--bas`/`--sure` saniye cinsinden bir bölüm seçer; `--kanal`, `--transpoze`, `--hiz`, `--bpm`, `--makam` (üstte görünen etiket) de var. Aynı başlık eskisinin yerine yazılır; uygulamanın sınırında (255 nota, 15 perde, 16 uzunluk) kesip söyler |
+| `python3 symbtr2kutu.py SymbTr/txt` | SymbTr veritabanından türküleri (53-TET koma) uygulamanın `sarkilar/turkuler.txt` biçimine çevirir |
 
 Port otomatik bulunur; gerekirse `-p COM5` / `-p /dev/ttyACM0`.
 
@@ -43,8 +45,10 @@ s.write(b"x\r\n")
 python3 tools/muzik/test_muzik_pc.py
 ```
 
-11 kontrol: MIDI okuyucu (çalışan durum, çok iz, tempo değişimi, sysex,
-davul), akordan melodi, yazıcı (gidiş-dönüş), zamanlı gönderme, kayıt ve
+16 kontrol: MIDI okuyucu (çalışan durum, çok iz, tempo değişimi, sysex,
+davul), akordan melodi, yazıcı (gidiş-dönüş), zamanlı gönderme, kayıt,
+`gom` (1/32 ızgara, oktav katlama, uygulamanın kendi ayrıştırıcısıyla geri
+okuma, aynı başlığın değiştirilmesi, perde sınırında kesme, bölüm seçme) ve
 bilgisayar için derlenmiş Müzik Kutusu uygulamasına sanal seri port
 üzerinden **gerçek zamanlı uçtan uca** çalma. Gerçek telsiz ve MIDI klavye ile
 henüz denenmedi.

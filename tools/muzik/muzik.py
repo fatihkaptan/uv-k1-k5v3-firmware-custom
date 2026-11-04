@@ -23,6 +23,10 @@ speaker as a (one-voice) MIDI instrument over USB-C.
   muzik.py canli [--giris AD]     a MIDI keyboard (needs: pip install mido python-rtmidi)
   muzik.py kaydet cikti.mid       what is played on the radio's keypad -> .mid
   muzik.py bilgi sarki.mid        what is in a MIDI file
+  muzik.py gom sarki.mid [--baslik "Ad"] [--bas 12 --sure 40]
+                                  a MIDI file's melody -> a song of the app
+                                  (App/apps/muzikkutusu/sarkilar/kendi.txt,
+                                  not in git): rebuild and install the app
 
 The radio's protocol is two commands per line: "n<MIDI note>" (60 = C4)
 starts a note, "x" stops it; the radio sends the same when its keypad plays.
@@ -32,6 +36,7 @@ reader and writer, no other dependency.
 
 import argparse
 import os
+import re
 import struct
 import sys
 import threading
@@ -350,6 +355,120 @@ def cmd_kaydet(args, ser):
     print(f"\n{len(notes)} nota -> {args.dosya}")
 
 
+# ---------------------------------------------------------------------------
+# gom: a MIDI file -> a song of the app (sarkilar/kendi.txt)
+# ---------------------------------------------------------------------------
+
+SONG_FILE = os.path.join(HERE, "..", "..", "App", "apps", "muzikkutusu", "sarkilar", "kendi.txt")
+TR = str.maketrans("çğıöşüÇĞİÖŞÜâîûÂÎÛ", "cgiosuCGIOSUaiuAIU")
+
+
+def length(u):
+    """32nds -> the song file's length: 8 -> '/4', 12 -> '/4.', 5 -> '*5/32'."""
+    from fractions import Fraction
+    fr = Fraction(u, 32)
+    if fr.numerator == 1:
+        return f"/{fr.denominator}"
+    if fr.numerator == 3 and fr.denominator % 2 == 0:
+        return f"/{fr.denominator // 2}."
+    return f"*{fr.numerator}/{fr.denominator}"
+
+
+def to_song(m, bpm, start=0.0, dur=None):
+    """A melody [(seconds, note or 0)] -> ([(note or 0, 32nds)], why it was
+    cut or None). Lengths on a 1/32 grid at bpm, octaves folded into the
+    app's C3 .. C7; it stops before the 256th note, the 16th pitch or the
+    17th length (the app's limits for one song)."""
+    q = 60.0 / bpm / 8
+    cap = max(1, min(256, int(8 * bpm)))          # <= 60 s a note
+    ev = []
+    for k in range(len(m) - 1):
+        t, n = m[k]
+        t1 = m[k + 1][0]
+        if t1 <= start + 1e-9:
+            continue
+        if dur is not None and t >= start + dur:
+            break
+        t = max(t, start)
+        if dur is not None:
+            t1 = min(t1, start + dur)
+        u = round((t1 - start) / q) - round((t - start) / q)
+        if u <= 0:
+            continue
+        while n and n < 48:
+            n += 12
+        while n > 96:
+            n -= 12
+        if ev and not n and not ev[-1][0]:
+            ev[-1][1] += u                             # rests merged
+        else:
+            ev.append([n, u])
+    while ev and not ev[0][0]:
+        ev.pop(0)
+    while ev and not ev[-1][0]:
+        ev.pop()
+    out, pitches, lens, why = [], set(), set(), None
+    for n, u in ev:
+        while u > 0:
+            v = min(u, cap)
+            if len(out) == 255:
+                why = "255 nota"
+            elif n and n not in pitches and len(pitches) == 15:
+                why = f"16. perde ({note_name(n)})"
+            elif v not in lens and len(lens) == 16:
+                why = "17. uzunluk"
+            if why:
+                return out, why
+            out.append((n, v))
+            pitches.add(n) if n else None
+            lens.add(v)
+            u -= v
+    return out, None
+
+
+def song_text(title, bpm, ev, makam=""):
+    toks = [(note_name(n) if n else "R") + length(u) for n, u in ev]
+    return (f"= {title} | {makam} | {bpm:g}\n"
+            + "\n".join(" ".join(toks[i:i + 12]) for i in range(0, len(toks), 12)) + "\n")
+
+
+def put_song(path, title, text):
+    """Write (or replace, same title) one song in the song file."""
+    old = open(path, encoding="utf-8").read() if os.path.exists(path) else \
+        "# Muzik Kutusu - kendi sarkilarim (git'e girmez). Bicim: gen_assets.py\n"
+    blocks = re.split(r"(?m)^(?==)", old)
+    keep = [b for b in blocks if not re.match(r"=\s*" + re.escape(title) + r"\s*\|", b)]
+    new = "".join(keep).rstrip("\n") + "\n\n" + text
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(new)
+    return len(keep) != len(blocks)
+
+
+def cmd_gom(args, _ser=None):
+    try:
+        div, ev = read_midi(open(args.dosya, "rb").read())
+    except (OSError, MidiError) as e:
+        uvterm.die(str(e))
+    ch = args.kanal - 1 if args.kanal else None
+    m = melody(div, ev, ch, args.transpoze, args.davul)
+    us = next((a for _, k, a, _, _ in ev if k == "tempo"), 500000)
+    bpm = args.bpm or round(60e6 / us, 1)
+    ev2, why = to_song(m, bpm, args.bas, args.sure)
+    if not ev2:
+        uvterm.die("dosyada gomulecek nota yok")
+    title = (args.baslik or os.path.splitext(os.path.basename(args.dosya))[0]).translate(TR)
+    title = "".join(c for c in title if c.isascii() and c.isprintable() and c not in "|#")[:16].strip() or "Sarki"
+    makam = "".join(c for c in args.makam.translate(TR) if c.isascii() and c.isalnum())[:8]
+    shown = round(bpm * args.hiz, 1)
+    replaced = put_song(args.cikti, title, song_text(title, shown, ev2, makam))
+    secs = sum(u for _, u in ev2) * 60 / shown / 8
+    print(f"'{title}': {sum(1 for n, _ in ev2 if n)} nota, {len({n for n, _ in ev2 if n})} perde, "
+          f"{secs:.1f} s, {shown:g} BPM -> {os.path.relpath(args.cikti)}" + (" (eskisinin yerine)" if replaced else ""))
+    if why:
+        print(f"  uygulamanin sinirinda kesildi ({why}): --bas / --sure ile baska bir bolum secilebilir")
+    print("  telsize: ./compile-app.sh muzikkutusu, sonra App/apps/muzikkutusu/MuzikKutusu.app'i yukle")
+
+
 def cmd_bilgi(args, _ser=None):
     div, ev = read_midi(open(args.dosya, "rb").read())
     chans = sorted({a for _, k, a, _, _ in ev if k == "on"})
@@ -378,9 +497,21 @@ def main(argv=None):
     c.add_argument("dosya")
     c = sub.add_parser("bilgi", help="MIDI dosyasi hakkinda")
     c.add_argument("dosya")
+    c = sub.add_parser("gom", help="MIDI'nin melodisini uygulamaya sarki olarak ekle (kendi.txt)")
+    c.add_argument("dosya")
+    c.add_argument("--baslik", help="listede gorunen ad (<= 16 harf; varsayilan dosya adi)")
+    c.add_argument("--makam", default="", help="calarken ustte gorunen makam/tur (istege bagli)")
+    c.add_argument("--bas", type=float, default=0.0, help="bu saniyeden basla")
+    c.add_argument("--sure", type=float, help="en fazla bu kadar saniye al")
+    c.add_argument("--bpm", type=float, help="tempo (varsayilan: dosyanin ilk temposu)")
+    c.add_argument("--hiz", type=float, default=1.0, help="hiz carpani (1.0 = asli)")
+    c.add_argument("--transpoze", type=int, default=0, help="yarim ses kaydir (-12 = bir oktav asagi)")
+    c.add_argument("--kanal", type=int, help="yalnizca bu MIDI kanali (1-16)")
+    c.add_argument("--davul", action="store_true", help="10. kanali (davul) da kat")
+    c.add_argument("--cikti", default=SONG_FILE, help="sarki dosyasi (varsayilan: sarkilar/kendi.txt)")
     args = ap.parse_args(argv)
-    if args.cmd == "bilgi":
-        return cmd_bilgi(args)
+    if args.cmd in ("bilgi", "gom"):
+        return {"bilgi": cmd_bilgi, "gom": cmd_gom}[args.cmd](args)
     uvterm.need_pyserial()
     ser = uvterm.open_port(uvterm.find_port(args.port))
     try:

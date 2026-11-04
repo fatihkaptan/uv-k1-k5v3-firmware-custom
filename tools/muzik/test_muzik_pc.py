@@ -97,10 +97,49 @@ def main():
     check("recording: n/x lines with their times -> notes",
           [(round(a, 2), round(b, 2), n) for a, b, n in rec] == [(0.0, 0.4, 60), (0.6, 0.5, 67), (1.1, 0.1, 69)], rec)
 
+    gom()
     e2e()
     if FAILS:
         sys.exit(f"{len(FAILS)} check(s) failed")
     print("all checks passed")
+
+
+def gom():
+    """muzik.py gom: a MIDI file -> sarkilar/kendi.txt, read back by the
+    app's own song parser (gen_assets.py)."""
+    import contextlib, io, tempfile
+    print("gom: MIDI -> a song of the app")
+    tmp = tempfile.mkdtemp()
+    mid, out = os.path.join(tmp, "deneme.mid"), os.path.join(tmp, "kendi.txt")
+    # 120 BPM: quarters, an eighth, a dotted quarter, a rest, a note above C7
+    muzik.write_midi([(0.0, 0.5, 60), (0.5, 0.5, 62), (1.0, 0.25, 64), (1.5, 0.75, 108)], mid)
+    with contextlib.redirect_stdout(io.StringIO()) as o:
+        muzik.main(["gom", mid, "--baslik", "Deneme Şarkı", "--makam", "Hicaz", "--cikti", out])
+    text = open(out).read()
+    check("tokens on the 1/32 grid, octaves folded into C3..C7, Turkish letters dropped",
+          "= Deneme Sarki | Hicaz | 120\nC4/4 D4/4 E4/8 R/8 C7/4." in text, text)
+    ns = {"__file__": os.path.join(ROOT, "App", "apps", "muzikkutusu", "gen_assets.py"), "__name__": "x"}
+    src = open(ns["__file__"]).read().replace("a.main()", "pass")
+    argv, sys.argv = sys.argv, ["gen_assets.py", os.devnull, os.devnull]
+    try:
+        exec(compile(src, "gen_assets.py", "exec"), ns)
+    finally:
+        sys.argv = argv
+    song = ns["songs"](out)
+    check("the app's parser reads it: 4 notes and a rest, 500/500/250/250/750 ms",
+          len(song) == 1 and [ms for _, ms in song[0]["ev"]] == [500, 500, 250, 250, 750], song)
+    with contextlib.redirect_stdout(io.StringIO()):
+        muzik.main(["gom", mid, "--baslik", "Deneme Sarki", "--hiz", "2", "--cikti", out])
+    text = open(out).read()
+    check("the same title again: replaced, not added (--hiz 2: 240 BPM)",
+          text.count("= Deneme Sarki") == 1 and "| 240" in text, text)
+    m = [(i * 0.25, 48 + i) for i in range(20)] + [(5.0, 0)]
+    ev, why = muzik.to_song(m, 120)
+    check("cut before the 16th pitch (the app's limit), with the reason",
+          len(ev) == 15 and why.startswith("16. perde"), (len(ev), why))
+    ev, why = muzik.to_song(m, 120, start=1.0, dur=1.0)
+    check("--bas 1 --sure 1: the notes of that second only", [n for n, _ in ev] == [52, 53, 54, 55] and why is None, ev)
+    print("  " + o.getvalue().splitlines()[0])
 
 
 def e2e():
