@@ -1,27 +1,42 @@
 #!/usr/bin/env python3
 # Muzik Kutusu read-only assets: texts, the BK4819 tone register value of
-# every note it plays, the built-in melodies, and the 1024-byte block where
-# the loader keeps the last keypad recording (APP_FLAG_SAVE_SCREEN).
+# every piano note, the songs, and the 1024-byte block where the loader keeps
+# the last keypad recording (APP_FLAG_SAVE_SCREEN).
 #
 #   ./gen_assets.py muzikkutusu_assets.bin muzikkutusu_assets.h
 #
-# Melodies are written as text: "C4/4 D#4/2 R/1" = note (C, C#/Db ... B, R for
-# a rest), octave (MIDI: C4 = 60), "/" duration in sixteenths. Every one here
-# is in the public domain (traditional, or composers dead for over a century).
-# To add your own, append to SONGS and rebuild.
-import os, re, sys
+# The songs are read from text files, in this order (missing ones skipped):
+#   sarkilar/kendi.txt     your own (not in git; tools/muzik/muzik.py gom)
+#   sarkilar/turkuler.txt  Turkish songs in komas (derived from SymbTr,
+#                          CC BY-NC-SA 4.0: see the file)
+#   sarkilar/klasik.txt    public-domain melodies
+#
+# Song file format, a line starting with "#" is a comment:
+#   = Title | Makam | BPM          title <= 16 ASCII, makam may be empty,
+#                                  BPM = quarter notes a minute
+#   C4/4 D#4/8 Eb4/8. R/2 F5#3/16 B4b1*5/8 ...
+# A note: R (rest), C#4 / Db4 (equal temperament, C4 = middle C) or C5#4 /
+# B4b1 (53-TET: the natural raised # or lowered b by that many komas, as in
+# Turkish notation), then the length: /8 an eighth, /8. a dotted eighth,
+# *5/8 five eighths. A song: at most 255 notes, 15 different pitches and 16
+# different lengths. Songs that do not fit the asset space are dropped from
+# the end, with a warning.
+import math, os, re, struct, sys
+from fractions import Fraction
 sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
-from app_assets import Assets
+from app_assets import Assets, ASSET_MAX
 
-VER = os.environ.get("APP_VER", "1.0")
-LO, HI = 48, 96            # the notes the tone table covers: C3 .. C7
+VER = os.environ.get("APP_VER", "1.1")
+LO, HI = 48, 96            # the piano's tone table: C3 .. C7
+FILES = ["kendi.txt", "turkuler.txt", "klasik.txt"]
+SAVE_SIZE = 1024
 a = Assets("MUZIKKUTUSU")
 
 # ---- screens ----
 a.text("T_TITLE", "MUZIK KUTUSU")
-a.table("T_MENU", ["Melodiler", "Piyano", "Ses: "])
+a.table("T_MENU", ["Sarkilar", "Piyano", "Ses: "])
 a.text("T_HINT", "1-3 sec  MENU gir  EXIT cik")
 a.text("T_USB", "USB: PC'den MIDI calar")
 a.table("T_NOTE", ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"])
@@ -31,98 +46,134 @@ a.text("T_OCT", "Oktav ")
 a.text("T_REC", "REC")
 a.text("T_PLAY", "CAL")
 a.text("T_PC", "PC")
-a.text("T_SONGHINT", "MENU cal/dur  UP/DN tempo")
 a.text("T_PIANOHINT", "* diyez MENU kayit F cal")
 a.text("T_RECN", "Kayit: ")
 a.text("T_NOTA", " nota")
 a.text("T_BANNER", f"# Muzik Kutusu {VER} ready")
 a.text("T_ECHO", "# echo off")
 
-# ---- BK4819 REG_71 for MIDI notes LO..HI: Hz x 1353245 / 2^17, rounded,
-# as the firmware's scale_freq() ----
-regs = []
-for n in range(LO, HI + 1):
-    hz = 440.0 * 2 ** ((n - 69) / 12)
-    regs.append((round(hz) * 1353245 + (1 << 16)) >> 17)
-a.u16("TONE", regs)
-a.u16("HZ", [round(440.0 * 2 ** ((n - 69) / 12)) for n in range(LO, HI + 1)])
-a.const("NOTE_LO", LO)
-a.const("NOTE_HI", HI)
 
-# ---- melodies ----
-NAMES = {"C": 0, "C#": 1, "DB": 1, "D": 2, "D#": 3, "EB": 3, "E": 4, "F": 5, "F#": 6, "GB": 6,
-         "G": 7, "G#": 8, "AB": 8, "A": 9, "A#": 10, "BB": 10, "B": 11}
+def reg(hz):
+    """BK4819 REG_71 for a tone: Hz x 1353245 / 2^17 (the firmware's
+    scale_freq() rounds the Hz first; the piano does the same)."""
+    return round(hz * 1353245 / (1 << 17))
 
 
-def notes(text):
-    out = []
-    for tok in text.split():
-        m = re.fullmatch(r"([A-Ga-g][#bB]?|R)(-?\d)?/(\d+)", tok)
-        if not m:
-            sys.exit(f"bad note {tok!r}")
-        name, octv, dur = m.group(1).upper(), m.group(2), int(m.group(3))
-        n = 0 if name == "R" else 12 * (int(octv) + 1) + NAMES[name]
-        if n and not LO <= n <= HI:
-            sys.exit(f"note {tok} outside C3..C7")
-        assert 1 <= dur <= 64, tok
-        out += [n, dur]
+def hz12(n):
+    return 440.0 * 2 ** ((n - 69) / 12)
+
+
+TONE = [(round(hz12(n)) * 1353245 + (1 << 16)) >> 17 for n in range(LO, HI + 1)]
+NTONE = len(TONE)
+
+# ---- songs ----
+SEMI = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+NATURAL = {"C": 0, "D": 9, "E": 18, "F": 22, "G": 31, "A": 40, "B": 49}   # komas above C
+TOKEN = re.compile(r"(R|[A-G][#b]?\d|[A-G]\d[#b]\d)(?:/(\d+)(\.?)|\*(\d+)/(\d+))")
+KOMA = []                  # the 53-TET pitches in use: (koma, name)
+
+
+def pitch(p, where):
+    """A global pitch index: 0 .. NTONE-1 the piano's notes, then KOMA."""
+    if p[1:2] in ("#", "b") or p[1:].isdigit():                   # C#4, Db4, C4
+        n = 12 * (int(p[-1]) + 1) + SEMI[p[0]] + {"#": 1, "b": -1}.get(p[1], 0)
+    else:                                                          # C5#4, B4b1
+        k = 265 + 53 * (int(p[1]) - 4) + NATURAL[p[0]] + int(p[3]) * (1 if p[2] == "#" else -1)
+        hz = 440.0 * 2 ** ((k - 305) / 53)
+        n = round(69 + 12 * math.log2(hz / 440))
+        if abs(1200 * math.log2(hz / hz12(n))) > 3:                # not an equal-tempered note
+            if not any(kk == k for kk, _ in KOMA):
+                KOMA.append((k, p))
+            return NTONE + next(i for i, (kk, _) in enumerate(KOMA) if kk == k)
+    if not LO <= n <= HI:
+        sys.exit(f"{where}: {p} outside C3 .. C7")
+    return n - LO
+
+
+def songs(path):
+    out, cur = [], None
+    for no, line in enumerate(open(path, encoding="utf-8"), 1):
+        line = "" if line.lstrip().startswith("#") else line.strip()      # "#" also means sharp
+        where = f"{os.path.basename(path)}:{no}"
+        if line.startswith("="):
+            f = [x.strip() for x in line[1:].split("|")]
+            if len(f) != 3 or not f[0] or len(f[0]) > 16 or not f[0].isascii() or not f[1].isascii():
+                sys.exit(f"{where}: '= Title (<= 16 ASCII) | Makam | BPM' expected")
+            cur = {"title": f[0], "makam": f[1], "bpm": float(f[2]), "ev": [], "where": where}
+            out.append(cur)
+        elif line:
+            if cur is None:
+                sys.exit(f"{where}: notes before the first '= Title | Makam | BPM' line")
+            for tok in line.split():
+                m = TOKEN.fullmatch(tok)
+                if not m:
+                    sys.exit(f"{where}: bad note {tok!r}")
+                fr = Fraction(1, int(m[2])) * (Fraction(3, 2) if m[3] else 1) if m[2] else Fraction(int(m[4]), int(m[5]))
+                ms = round(fr * 240000 / cur["bpm"])
+                if not 1 <= ms <= 65535:
+                    sys.exit(f"{where}: {tok}: {ms} ms")
+                cur["ev"].append((None if m[1] == "R" else pitch(m[1], where), ms))
     return out
 
 
-def morse(text, note="F5"):
-    code = {"C": "-.-.", "Q": "--.-", "D": "-..", "E": ".", "T": "-", "A": ".-", "7": "--...",
-            "3": "...--"}
-    out = []
-    for word in text.split():
-        for letter in word:
-            for i, s in enumerate(code[letter]):
-                out.append(f"{note}/{1 if s == '.' else 3}")
-                out.append("R/1")
-            out[-1] = "R/3"
-        out[-1] = "R/7"
-    return " ".join(out)
+def blob(s, makam):
+    ev = s["ev"]
+    pal = list(dict.fromkeys(p for p, _ in ev if p is not None))
+    durs = list(dict.fromkeys(ms for _, ms in ev))
+    w = f"{s['where']} '{s['title']}'"
+    if not ev or len(ev) > 255 or len(pal) > 15 or len(durs) > 16:
+        sys.exit(f"{w}: {len(ev)} notes, {len(pal)} pitches, {len(durs)} lengths (max 255, 15, 16)")
+    # header: BPM, note count, makam, pitches, lengths, title NUL; the
+    # pitches (global index), the lengths (ms at 100 %), then one byte a note:
+    # pitch << 4 | length, pitch 15 = rest
+    return (bytes([min(255, round(s["bpm"])), len(ev), makam, len(pal), len(durs)]) + s["title"].encode() + b"\0"
+            + bytes(pal) + struct.pack(f"<{len(durs)}H", *durs)
+            + bytes((15 if p is None else pal.index(p)) << 4 | durs.index(ms) for p, ms in ev))
 
 
-TWINKLE = "C4/4 C4/4 G4/4 G4/4 A4/4 A4/4 G4/8 F4/4 F4/4 E4/4 E4/4 D4/4 D4/4 C4/8 "
-SONGS = [
-    ("Daha Dun Annemiz", 100,
-     TWINKLE + "G4/4 G4/4 F4/4 F4/4 E4/4 E4/4 D4/8 G4/4 G4/4 F4/4 F4/4 E4/4 E4/4 D4/8 " + TWINKLE),
-    ("Nese Marsi", 110,                                    # Beethoven, 9th symphony
-     "E4/4 E4/4 F4/4 G4/4 G4/4 F4/4 E4/4 D4/4 C4/4 C4/4 D4/4 E4/4 E4/6 D4/2 D4/8 "
-     "E4/4 E4/4 F4/4 G4/4 G4/4 F4/4 E4/4 D4/4 C4/4 C4/4 D4/4 E4/4 D4/6 C4/2 C4/8"),
-    ("Fur Elise", 75,                                      # Beethoven
-     "E5/1 D#5/1 E5/1 D#5/1 E5/1 B4/1 D5/1 C5/1 A4/2 R/1 C4/1 E4/1 A4/1 B4/2 R/1 E4/1 G#4/1 B4/1 "
-     "C5/2 R/1 E4/1 E5/1 D#5/1 E5/1 D#5/1 E5/1 B4/1 D5/1 C5/1 A4/2 R/1 C4/1 E4/1 A4/1 "
-     "B4/2 R/1 E4/1 C5/1 B4/1 A4/6"),
-    ("Iyi ki Dogdun", 100,
-     "G4/3 G4/1 A4/4 G4/4 C5/4 B4/8 G4/3 G4/1 A4/4 G4/4 D5/4 C5/8 "
-     "G4/3 G4/1 G5/4 E5/4 C5/4 B4/4 A4/8 F5/3 F5/1 E5/4 C5/4 D5/4 C5/8"),
-    ("Jingle Bells", 140,                                  # Pierpont, 1857
-     "E4/2 E4/2 E4/4 E4/2 E4/2 E4/4 E4/2 G4/2 C4/3 D4/1 E4/8 F4/2 F4/2 F4/3 F4/1 "
-     "F4/2 E4/2 E4/2 E4/1 E4/1 E4/2 D4/2 D4/2 E4/2 D4/4 G4/4 "
-     "E4/2 E4/2 E4/4 E4/2 E4/2 E4/4 E4/2 G4/2 C4/3 D4/1 E4/8 F4/2 F4/2 F4/3 F4/1 "
-     "F4/2 E4/2 E4/2 E4/1 E4/1 G4/2 G4/2 F4/2 D4/2 C4/8"),
-    ("Tembel Cocuk", 120,                                  # Frere Jacques
-     "C4/4 D4/4 E4/4 C4/4 C4/4 D4/4 E4/4 C4/4 E4/4 F4/4 G4/8 E4/4 F4/4 G4/8 "
-     "G4/2 A4/2 G4/2 F4/2 E4/4 C4/4 G4/2 A4/2 G4/2 F4/2 E4/4 C4/4 "
-     "C4/4 G3/4 C4/8 C4/4 G3/4 C4/8"),
-    ("Menuet Sol Majr", 120,                              # Petzold, BWV Anh. 114
-     "D5/4 G4/2 A4/2 B4/2 C5/2 D5/4 G4/4 G4/4 E5/4 C5/2 D5/2 E5/2 F#5/2 G5/4 G4/4 G4/4 "
-     "C5/4 D5/2 C5/2 B4/2 A4/2 B4/4 C5/2 B4/2 A4/2 G4/2 F#4/4 G4/2 A4/2 B4/2 G4/2 A4/12"),
-    ("CQ CQ (Mors)", 250, morse("CQ CQ")),
-]
-blob, offs = bytearray(), []
-for title, bpm, text in SONGS:
-    ns = notes(text)
-    assert len(title) <= 16 and len(ns) // 2 <= 255, title
-    offs.append(len(blob))
-    # header: ms per sixteenth, note count, title NUL; then (note, sixteenths)
-    blob += bytes([round(15000 / bpm), len(ns) // 2]) + title.encode() + b"\0" + bytes(ns)
+SONGS = [s for f in FILES if os.path.exists(os.path.join(HERE, "sarkilar", f))
+         for s in songs(os.path.join(HERE, "sarkilar", f))]
+MAKAMS = [""] + list(dict.fromkeys(s["makam"] for s in SONGS if s["makam"]))
+
+# the space left for the songs: everything else is fixed
+fixed = sum(len(p) for _, p in a.texts) + 2 * NTONE + SAVE_SIZE + sum(len(m) + 1 for m in MAKAMS) * 2
+while True:
+    used = sorted({p for s in SONGS for p, _ in s["ev"] if p is not None and p >= NTONE})
+    knames = max([len(KOMA[p - NTONE][1]) + 1 for p in used] or [1])
+    blobs = [blob(s, MAKAMS.index(s["makam"])) for s in SONGS]
+    size = fixed + sum(map(len, blobs)) + 2 * len(blobs) + len(used) * (3 + knames)
+    if size <= ASSET_MAX or len(SONGS) == 1:
+        break
+    print(f"gen_assets.py: no room for '{SONGS[-1]['title']}' ({size} > {ASSET_MAX} B), dropped",
+          file=sys.stderr)
+    SONGS.pop()
+
+# the 53-TET pitches the songs use, renumbered: REG_71, the nearest piano key
+# (for the keyboard drawing), the name shown
+used = sorted({p for s in SONGS for p, _ in s["ev"] if p is not None and p >= NTONE})
+remap = {p: NTONE + i for i, p in enumerate(used)}
+for s in SONGS:
+    s["ev"] = [(remap.get(p, p), ms) for p, ms in s["ev"]]
+KUSED = [KOMA[p - NTONE] for p in used]
+assert NTONE + len(KUSED) <= 255
+a.table("T_MAKAM", MAKAMS)
+a.table("KNAME", [n for _, n in KUSED] or [""])
+a.u16("TONE", TONE)
+a.u16("KREG", [reg(440.0 * 2 ** ((k - 305) / 53)) for k, _ in KUSED] or [0])
+a.u8("KMIDI", [round(69 + 12 * math.log2(2 ** ((k - 305) / 53))) for k, _ in KUSED] or [0])
+a.const("NOTE_LO", LO)
+a.const("NOTE_HI", HI)
+a.const("NTONE", NTONE)
+offs, data = [], bytearray()
+for s in SONGS:
+    offs.append(len(data))
+    data += blob(s, MAKAMS.index(s["makam"]))
 a.u16("SONG_OFF", offs)
-a.raw("SONG", blob)
+a.raw("SONG", data)
 a.const("NSONG", len(SONGS))
 
 # ---- the saved recording (must stay the last item: the loader writes the
 # screen it leaves at exit over the last 1024 bytes of the assets) ----
-a.raw("SAVE", bytes(1024))
-a.main()
+a.raw("SAVE", bytes(SAVE_SIZE))
+if __name__ == "__main__":
+    a.main()

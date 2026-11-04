@@ -21,7 +21,7 @@ TOL = 15                                   # ms: 10 ms ticks + 5 ms polling
 
 def data():
     ns = {"__file__": os.path.join(APP, "gen_assets.py"), "__name__": "data"}
-    src = open(os.path.join(APP, "gen_assets.py")).read().replace("a.main()", "")
+    src = open(os.path.join(APP, "gen_assets.py")).read().replace("a.main()", "pass")
     argv, sys.argv = sys.argv, ["gen_assets.py", os.devnull, os.devnull]
     try:
         exec(compile(src, "gen_assets.py", "exec"), ns)
@@ -31,10 +31,10 @@ def data():
 
 
 D = data()
-REG2NOTE = {}
-for n in range(D["LO"], D["HI"] + 1):
-    hz = 440.0 * 2 ** ((n - 69) / 12)
-    REG2NOTE[(round(hz) * 1353245 + (1 << 16)) >> 17] = n
+REG2NOTE = {r: D["LO"] + i for i, r in enumerate(D["TONE"])}      # piano notes -> MIDI
+KREGS = [D["reg"](440.0 * 2 ** ((k - 305) / 53)) for k, _ in D["KUSED"]]
+for i, r in enumerate(KREGS):
+    REG2NOTE.setdefault(r, D["NTONE"] + i)                            # 53-TET pitches -> index
 
 
 def Run(s, **kw):
@@ -57,17 +57,17 @@ def Run(s, **kw):
 
 
 def expected(song, tempo=100):
-    title, bpm, text = D["SONGS"][song]
-    ms16 = round(15000 / bpm)
-    ev = D["notes"](text)
     out, t = [], 0
-    for i in range(0, len(ev), 2):
-        n, d = ev[i], ev[i + 1]
-        ms = d * ms16 * 100 // tempo
-        if n:
-            out.append((n, t, ms - ms // 8))
+    for p, d in D["SONGS"][song]["ev"]:
+        ms = d * 100 // tempo
+        if p is not None:
+            out.append((D["LO"] + p if p < D["NTONE"] else p, t, ms - ms // 8))
         t += ms
     return out
+
+
+def pick(song):
+    return [f"press {song + 1}"] if song < 9 else [*press("DOWN") * song, "press MENU"]
 
 
 def close(got, want, tol=TOL):
@@ -83,17 +83,18 @@ def tests():
     for song in range(len(D["SONGS"])):
         want = expected(song)
         total = want[-1][1] + want[-1][2] + 500
-        r = Run(script("wait 50", "press 1", "wait 50", f"press {song + 1}", f"wait {total}", "state"))
-        if song < 3:
-            check(f"'{D['SONGS'][song][0]}': every note, pitch and timing (+-{TOL} ms)",
+        r = Run(script("wait 50", "press 1", "wait 50", *pick(song), f"wait {total}", "state"))
+        name = D["SONGS"][song]["title"]
+        if song < 3 or song == 11:
+            check(f"'{name}': every note, pitch and timing (+-{TOL} ms)",
                   close(r.notes, want), (r.notes[:4], want[:4], len(r.notes), len(want)))
         else:
-            check(f"'{D['SONGS'][song][0]}': the notes in order", [n for n, _, _ in r.notes] == [n for n, _, _ in want],
+            check(f"'{name}': the notes in order", [n for n, _, _ in r.notes] == [n for n, _, _ in want],
                   (len(r.notes), len(want)))
         if song == 0:
             check("the song ends by itself, back to the list", r.last["src"] == 0, r.last)
-    want = expected(1, tempo=120)
-    r = Run(script("wait 50", "press 1", "wait 50", "press 2", "wait 5", "press UP", "press UP", "wait 20000"))
+    want = expected(11, tempo=120)
+    r = Run(script("wait 50", "press 1", "wait 50", *pick(11), "wait 5", "press UP", "press UP", "wait 26000"))
     check("UP x2 while playing: tempo 120 %, every note shorter", close(r.notes[1:], want[1:], tol=25),
           (r.notes[1:4], want[1:4]))
     r = Run(script("wait 50", "press 1", "wait 50", "press 3", "wait 1000", "press EXIT", "wait 50", "state",
@@ -142,7 +143,7 @@ def tests():
     print("USB, volume, silence")
     r = Run(script("host 1", "wait 50", "rx n69\\r", "wait 300", "state", "rx x\\r", "wait 50", "rx /echo off\\r",
                    "wait 50", "press 1", "wait 300", "up", "wait 50"))
-    check("banner on connection", r.tx.startswith(b"# Muzik Kutusu 1.0 ready\r\n"), r.tx[:40])
+    check("banner on connection", r.tx.startswith(b"# Muzik Kutusu 1.1 ready\r\n"), r.tx[:40])
     check("'n69' plays A4 until 'x', the piano view opens", r.notes[0][0] == 69 and abs(r.notes[0][2] - 300) <= TOL
           and r.states[0]["view"] == 2, (r.notes, r.states[0]))
     check("/echo off answered", b"# echo off\r\n" in r.tx)

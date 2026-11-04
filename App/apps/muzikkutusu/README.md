@@ -17,7 +17,7 @@ bantlarda müzik yayını yasaktır).
 
 | | |
 |---|---|
-| **1 Melodiler** | 8 melodi: Daha Dün Annemiz, Neşe Marşı, Für Elise, İyi ki Doğdun, Jingle Bells, Tembel Çocuk, Menuet (Sol majör), CQ CQ (Mors). Çalarken: başlık, çalan nota ve BPM, ilerleme çubuğu, klavyede çalan tuş. `UP`/`DOWN` tempo (%50–%200). |
+| **1 Şarkılar** | 19 şarkı. **Türküler ve hicaz** (53-TET koma perdeleriyle, gerçek makam sesi): Beyaz Giyme (Bolu, segah), Üsküdar'a Gider İken (nihavent), Çayelinden Öteye, Bitlis'te Beş Minare, Kırmızı Gülün Alı Var, Erkilet Güzeli (hicaz), Çanakkale İçinde (neva), Sarı Gelin, Hey Onbeşli, Ceddin Deden (hüseyni), Gesi Bağları (beyati). Ardından: Daha Dün Annemiz, Neşe Marşı, Für Elise, İyi ki Doğdun, Jingle Bells, Tembel Çocuk, Menuet, CQ CQ (Mors). Listede seçilinin makamı; çalarken nota (`F5#3` = Fa'nın 3 koma dieziyle), BPM, makam ve Hz. `1`–`9` doğrudan çalar, `UP`/`DOWN` seçer; çalarken tempo (%50–%200). |
 | **2 Piyano** | Tuş takımı iki oktavlık bir klavye: `1`–`0` = do re mi fa sol la si do re mi, `*` sonraki notayı diyez yapar, `UP`/`DOWN` oktav (3–6). Ekranda notanın adı (büyük), frekansı, oktav ve tuş numaralı klavye. |
 | **Kayıt** | Piyanoda `MENU` kaydı başlatır/bitirir (notalar ve aradaki sessizlikler, 20 ms çözünürlük, 255 olay). `F` kaydı çalar. Çıkışta saklanır, sonraki açılışta geri gelir. |
 | **3 Ses** | 5 seviye (`###..`), her basışta bir örnek nota. |
@@ -45,7 +45,7 @@ python3 tools/uvterm/uvterm.py install App/apps/muzikkutusu/prebuilt/MuzikKutusu
 |---|---|---|
 | Menü | `1`–`3`, `UP`/`DOWN` + `MENU` | Bölüm seç; `3` sesi bir kademe artırır |
 | | `EXIT` | Çıkış |
-| Melodiler | `UP`/`DOWN` | Melodi seç; çalarken tempo |
+| Şarkılar | `UP`/`DOWN` | Şarkı seç; çalarken tempo |
 | | `MENU` ya da `1`–`8` | Çal / dur |
 | | `EXIT` | Dur, sonra menü |
 | Piyano | `1`–`0` | Nota (basılı tuttukça çalar) |
@@ -89,3 +89,25 @@ basılı tutulan tuş süreleri, diyez, oktav sınırları, kayıt ve çalma, **
 başlatmadan sonra kaydın geri gelmesi** (yükleyicinin sakladığı blok taklit
 edilerek), USB `n`/`x` protokolü, ses seviyesi ve amfinin kapanması (28 kontrol).
 Gerçek telsizde henüz denenmedi.
+
+## Türküler, hicaz ve kendi şarkıların
+
+Şarkılar `sarkilar/` altındaki metin dosyalarından derlenir (biçim:
+`gen_assets.py` başı): `kendi.txt` (senin, git'e girmez), `turkuler.txt`,
+`klasik.txt`. Nota `C#4/8` (eşit aralık) ya da `B4b1/16`, `C5#4/8.`
+(53-TET: doğalı kaç koma diez/bemol), uzunluk `/8` sekizlik, `/8.` noktalı,
+`*5/8`. Şarkı başına en çok 255 nota, 15 perde, 16 uzunluk; yer kalmazsa
+sondaki şarkılar uyarıyla çıkarılır.
+
+**Türküler** [SymbTr](https://github.com/MTG/SymbTr) veritabanından
+türetildi (M. Kemal Karaosmanoğlu, *A Turkish makam music symbolic database
+for music information retrieval: SymbTr*, ISMIR 2012) ve onun lisansıyla,
+**CC BY-NC-SA 4.0** (ticari olmayan, aynı lisansla paylaş) altındadır:
+`sarkilar/turkuler.txt` ve onu içeren `.app`. Yalnızca anonim türküler ve 70
+yılı aşkın besteler, yalnızca perde ve süre (söz yok). Yeniden üretmek:
+`python3 tools/muzik/symbtr2kutu.py SymbTr/txt > sarkilar/turkuler.txt`.
+
+**Kurtlar Vadisi** gibi telifli eserler uygulamaya gömülmez. Kendi MIDI
+dosyanı `python3 tools/muzik/muzik.py cal dosya.mid` ile PC'den çalabilir
+ya da notalarını `sarkilar/kendi.txt`'ye yazıp kendin için derleyebilirsin
+(dosya git'e girmez, listenin başına gelir).

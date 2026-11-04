@@ -18,7 +18,7 @@
  * Muzik Kutusu - a music box on the radio's speaker. API level 3, nothing is
  * ever transmitted (playing music on the air is not allowed). See README.md.
  *
- *   1 Melodiler  eight public-domain tunes, tempo adjustable while playing
+ *   1 Sarkilar   turkuler (53-TET komas) and public-domain tunes, tempo adjustable
  *   2 Piyano     the keypad is a two-octave keyboard (1-0 = C D E F G A B C
  *                D E, * sharp, UP/DOWN octave); a note sounds as long as its
  *                key is held; MENU records, F plays the recording back. The
@@ -61,13 +61,13 @@ typedef struct { uint8_t magic, vol, oct, song; } cfg_t;
 typedef struct { uint16_t magic; uint8_t n, pad; uint8_t ev[2u * NREC]; } rec_t;   /* the saved block */
 
 static struct {
-    uint8_t  view, sel, cur, last, raw, key, src, pos, len, ms16, tempo, rxLen, played;
+    uint8_t  view, sel, cur, last, raw, key, src, pos, len, bpm, kn, tempo, rxLen, played;
     bool     held, dirty, quit, saver, sharp, rec, host, audio, cr, pc;
     cfg_t    cfg;
     const app_api_t *A;
     rec_t   *R;                        /* on app_main's stack                    */
     uint32_t now, keyT, evAt, gapAt, recT, idleT, batT;
-    uint16_t notes;                    /* asset offset of the song's notes       */
+    uint16_t notes, pal, dur, reg;     /* song: notes, pitches, lengths; REG_71  */
     char     rx[8];
 } g;
 
@@ -108,16 +108,29 @@ static void noteOff(void) {
     g.A->tx_mute(true);
     g.cur = 0; g.idleT = g.now; g.dirty = true;
 }
+static void tone(uint16_t r, uint8_t n) {       /* REG_71 value, the key drawn */
+    if (!g.audio) { g.A->prepare_tone(); volume(); g.A->audio_path(true); g.audio = true; }
+    g.A->bk_write(REG_71, r);
+    g.A->tx_mute(false);
+    g.reg = r; g.cur = g.last = n; g.dirty = true;
+}
 static void noteOn(uint8_t n) {
     if (!n) { noteOff(); return; }
     while (n < NOTE_LO) n = (uint8_t)(n + 12u);
     while (n > NOTE_HI) n = (uint8_t)(n - 12u);
-    if (!g.audio) { g.A->prepare_tone(); volume(); g.A->audio_path(true); g.audio = true; }
     uint16_t r;
     g.A->asset_read((uint16_t)(TONE + 2u * (n - NOTE_LO)), &r, 2);
-    g.A->bk_write(REG_71, r);
-    g.A->tx_mute(false);
-    g.cur = g.last = n; g.dirty = true;
+    g.kn = 0;
+    tone(r, n);
+}
+static void pitchOn(uint8_t p) {                /* a song's pitch: piano note or 53-TET */
+    if (p < NTONE) { noteOn((uint8_t)(NOTE_LO + p)); return; }
+    p = (uint8_t)(p - NTONE);
+    uint16_t r; uint8_t n;
+    g.A->asset_read((uint16_t)(KREG + 2u * p), &r, 2);
+    g.A->asset_read((uint16_t)(KMIDI + p), &n, 1);
+    g.kn = (uint8_t)(p + 1u);
+    tone(r, n);
 }
 static void quiet(void) {                       /* amplifier off, back to RX */
     if (!g.audio) return;
@@ -132,32 +145,37 @@ static void seqStart(uint8_t src) {
     noteOff();
     g.src = src; g.pos = 0; g.evAt = g.now; g.gapAt = 0; g.dirty = true;
     if (src == S_REC) { g.len = g.R->n; return; }
-    uint8_t h[2];
+    uint8_t h[5];
     uint16_t off;
     g.A->asset_read((uint16_t)(SONG_OFF + 2u * g.cfg.song), &off, 2);
-    g.A->asset_read((uint16_t)(SONG + off), h, 2);
-    g.ms16 = h[0]; g.len = h[1];
+    g.A->asset_read((uint16_t)(SONG + off), h, 5);
+    g.bpm = h[0]; g.len = h[1];
     char t[TEXT_MAX];
-    g.notes = (uint16_t)(SONG + off + 2u + slen(T(t, (uint16_t)(SONG + off + 2u))) + 1u);
+    g.pal = (uint16_t)(SONG + off + 5u + slen(T(t, (uint16_t)(SONG + off + 5u))) + 1u);
+    g.dur = (uint16_t)(g.pal + h[3]);
+    g.notes = (uint16_t)(g.dur + 2u * h[4]);
 }
 static void seqStep(void) {
     if (!g.src) return;
     if (g.gapAt && due(g.gapAt)) { noteOff(); g.gapAt = 0; }
     if (!due(g.evAt)) return;
     if (g.pos >= g.len) { seqStop(); return; }
-    uint8_t ev[2];
     uint32_t ms;
     if (g.src == S_SONG) {
-        g.A->asset_read((uint16_t)(g.notes + 2u * g.pos), ev, 2);
-        ms = (uint32_t)ev[1] * g.ms16 * 100u / g.tempo;
+        uint8_t e, p = 0;
+        uint16_t d;
+        g.A->asset_read((uint16_t)(g.notes + g.pos), &e, 1);
+        g.A->asset_read((uint16_t)(g.dur + 2u * (e & 15u)), &d, 2);
+        ms = (uint32_t)d * 100u / g.tempo;
+        if ((e >> 4) == 15u) noteOff();
+        else { g.A->asset_read((uint16_t)(g.pal + (e >> 4)), &p, 1); pitchOn(p); }
+        g.evAt += ms;
+        /* a song's notes are detached: silent for the last eighth of each */
+        if ((e >> 4) != 15u) g.gapAt = g.evAt - ms / 8u;
     } else {
-        ev[0] = g.R->ev[2u * g.pos]; ev[1] = g.R->ev[2u * g.pos + 1u];
-        ms = (uint32_t)ev[1] * REC_UNIT;
+        noteOn(g.R->ev[2u * g.pos]);
+        g.evAt += (uint32_t)g.R->ev[2u * g.pos + 1u] * REC_UNIT;
     }
-    noteOn(ev[0]);
-    g.evAt += ms;
-    /* a song's notes are detached: silent for the last eighth of each */
-    if (g.src == S_SONG && ev[0]) g.gapAt = g.evAt - ms / 8u;
     g.pos++;
     g.dirty = true;
 }
@@ -244,7 +262,7 @@ static void pianoKey(uint8_t k) {
     }
 }
 static void songKey(uint8_t k) {
-    if (k >= APP_KEY_1 && k < APP_KEY_1 + NSONG) { g.cfg.song = (uint8_t)(k - APP_KEY_1); g.tempo = 100; seqStart(S_SONG); return; }
+    if (k >= APP_KEY_1 && k <= APP_KEY_9 && k < APP_KEY_1 + NSONG) { g.cfg.song = (uint8_t)(k - APP_KEY_1); g.tempo = 100; seqStart(S_SONG); return; }
     switch (k) {
     case APP_KEY_UP:
     case APP_KEY_DOWN:
@@ -306,8 +324,12 @@ static void fill(uint8_t x0, uint8_t x1, uint8_t y0, uint8_t y1, bool xor) {
         }
 }
 static char *noteName(char *o, uint8_t n) {
+    if (g.kn && n == g.cur) return putT(o, (uint16_t)(KNAME + (g.kn - 1u) * KNAME_STRIDE));
     o = putT(o, (uint16_t)(T_NOTE + (n % 12u) * T_NOTE_STRIDE));
     return putu(o, n / 12u - 1u);
+}
+static char *hzOf(char *o) {                    /* the tone's Hz, from REG_71 */
+    return putT(putu(o, ((uint32_t)g.reg * 131072u + 676622u) / 1353245u), T_HZ);
 }
 /* Two octaves from base (a C), keys 9 px wide; key i: x 9i+1 .. 9i+8. The
  * keypad digits under the first ten white keys; hl is drawn inverted. */
@@ -347,26 +369,32 @@ static void drawSongs(void) {
     const app_api_t *A = g.A;
     char s[32], t[TEXT_MAX];
     uint16_t off;
+    uint8_t mk;
     title(T(t, T_TITLE));
-    if (!g.src) {                               /* the list */
+    A->asset_read((uint16_t)(SONG_OFF + 2u * g.cfg.song), &off, 2);
+    A->asset_read((uint16_t)(SONG + off + 2u), &mk, 1);
+    if (!g.src) {                               /* the list: tiny number, title */
         const uint8_t top = g.cfg.song > 6u ? (uint8_t)(g.cfg.song - 6u) : 0;
         for (uint8_t r = 0; r < 7u && top + r < NSONG; r++) {
             const uint8_t i = (uint8_t)(top + r);
             A->asset_read((uint16_t)(SONG_OFF + 2u * i), &off, 2);
-            s[0] = (char)('1' + i); s[1] = ' ';
-            put(s + 2, T(t, (uint16_t)(SONG + off + 2u)));
-            A->print_normal(s, 0, 0, r);
+            putu(s, i + 1u);
+            A->print_tiny(s, 0, (uint8_t)(8u * r + 1u), false, true);
+            A->print_normal(T(t, (uint16_t)(SONG + off + 5u)), 10, 0, r);
             if (i == g.cfg.song) for (uint8_t x = 0; x < 128u; x++) A->fb[r][x] ^= 0xFFu;
         }
+        A->print_tiny(T(t, (uint16_t)(T_MAKAM + mk * T_MAKAM_STRIDE)), 0, 57, false, true);
         return;
     }
     capsule(T_PLAY);
-    A->asset_read((uint16_t)(SONG_OFF + 2u * g.cfg.song), &off, 2);
-    A->print_normal(T(t, (uint16_t)(SONG + off + 2u)), 0, 0, 0);
+    A->print_normal(T(t, (uint16_t)(SONG + off + 5u)), 0, 0, 0);
     char *o = s;
     if (g.cur) o = put(noteName(s, g.cur), "  ");
-    putT(putu(o, 150u * g.tempo / g.ms16), T_BPM);       /* 60000 / (4 x ms16 x 100 / tempo) */
+    putT(putu(o, (uint32_t)g.bpm * g.tempo / 100u), T_BPM);
     A->print_normal(s, 0, 0, 1);
+    o = putT(s, (uint16_t)(T_MAKAM + mk * T_MAKAM_STRIDE));
+    if (g.cur) hzOf(put(o, "  "));
+    A->print_tiny(s, 0, 57, false, true);
     fill(0, 126, 17, 21, false);                /* progress bar */
     fill(1, 125, 18, 20, true);
     if (g.len) fill(1, (uint8_t)(1u + 124u * g.pos / g.len), 18, 20, true);
@@ -384,9 +412,7 @@ static void drawPiano(void) {
     if (n) {
         noteName(s, n);
         A->print_string(s, 2, 0, 0, 10);        /* big, lines 0-1 */
-        uint16_t hz;
-        A->asset_read((uint16_t)(HZ + 2u * (n - NOTE_LO)), &hz, 2);
-        putT(putu(s, hz), T_HZ);
+        hzOf(s);
         A->print_normal(s, 48, 0, 0);
     }
     putu(putT(s, T_OCT), g.cfg.oct);
