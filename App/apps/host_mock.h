@@ -42,9 +42,13 @@
  *   press <key>      down for 60 ms, then up for 60 ms
  *   state            call mock_state()
  *   shot <name>      write test/out/<name>.raw (status line + frame buffer)
+ *   txstate <n>      what tx_state() returns (0: transmitting allowed)
+ *   call <callsign>  what boot_callsign() returns (TA2AAA)
+ *   anything else    the harness's mock_cmd hook (e.g. "air <hex>")
  *
  * Output: TX <hex> per serial_write, TONE <hz> <ms>, LED <0|1>, SHOT <name>,
- * CFG <hex> (cfg_save), END (script exhausted), QUIT (app_main returned).
+ * CFG <hex> (cfg_save), TXON / TXOFF (tx_set_params / tx_end), END (script
+ * exhausted), QUIT (app_main returned).
  *
  * Live mode (LIVE_FD=<fd> in the environment, e.g. a pty master): the serial
  * port is that descriptor and delay_ms() really sleeps, so a program on the
@@ -63,6 +67,15 @@
 
 static void mock_state(void);
 static void mock_quit(void);
+
+/* Optional hooks a harness sets before mock_main(): the BK4819 registers
+ * (bk_read / bk_write), and script commands of its own (return 1 when the
+ * command was handled). */
+static uint16_t (*mock_bk_read)(uint8_t reg);
+static void     (*mock_bk_write)(uint8_t reg, uint16_t v);
+static int      (*mock_cmd)(const char *cmd, const char *arg);
+static uint8_t  txDenied;        /* "txstate <n>": what tx_state() returns */
+static char     bootCall[12] = "TA2AAA";
 
 static uint8_t  fb[7][128], status[128];
 static uint8_t  assets[4096];
@@ -215,7 +228,9 @@ static void script(void) {
         else if (!strcmp(line, "press")) { key = keyCode(arg); resume = now + 60; pendingUp = 1; }
         else if (!strcmp(line, "state")) mock_state();
         else if (!strcmp(line, "shot")) shot(arg);
-        else { fprintf(stderr, "bad command %s\n", line); exit(2); }
+        else if (!strcmp(line, "txstate")) txDenied = (uint8_t)atoi(arg);
+        else if (!strcmp(line, "call")) snprintf(bootCall, sizeof bootCall, "%s", arg);
+        else if (!mock_cmd || !mock_cmd(line, arg)) { fprintf(stderr, "bad command %s\n", line); exit(2); }
     }
 }
 
@@ -256,6 +271,12 @@ static uint64_t m_idivmod(int32_t n, int32_t d) {
 static uint32_t m_freq(void) { return rxFreq; }
 static int16_t  m_rssi(void) { return -97; }
 static int8_t   m_nav(uint8_t k) { return k == APP_KEY_UP ? 1 : k == APP_KEY_DOWN ? -1 : 0; }
+static uint16_t m_bk_read(uint8_t r) { return mock_bk_read ? mock_bk_read(r) : 0; }
+static void     m_bk_write(uint8_t r, uint16_t v) { if (mock_bk_write) mock_bk_write(r, v); }
+static uint8_t  m_tx_state(void) { return txDenied; }
+static void     m_tx_params(void) { printf("TXON\n"); }
+static void     m_tx_end(void) { printf("TXOFF\n"); }
+static void     m_boot_call(char *buf, uint8_t len) { snprintf(buf, len, "%s", bootCall); }
 static uint16_t m_serial_read(uint8_t port, void *buf, uint16_t len) {
     uint16_t n = 0;
     if (port != APP_SERIAL_USB) return 0;
@@ -324,6 +345,9 @@ static int mock_main(int argc, char **argv) {
     api.append_i32 = m_i32; api.append_u32 = m_u32;
     api.serial_read = m_serial_read; api.serial_write = m_serial_write;
     api.serial_ctl = m_serial_ctl;
+    api.bk_read = m_bk_read; api.bk_write = m_bk_write;
+    api.tx_state = m_tx_state; api.tx_set_params = m_tx_params; api.tx_end = m_tx_end;
+    api.boot_callsign = m_boot_call;
 
     script();
     app_main(&api);

@@ -156,7 +156,7 @@ def encode_line(text):
 
 def classify(line):
     """What a line from the radio is: ('banner'|'ack'|'info'|'echo'|'msg', text)."""
-    if line.startswith("# USB Term") and "ready" in line:
+    if line.startswith("# ") and " ready" in line:   # USB Term, RF Mesaj: "# <app> <ver> ready ..."
         return "banner", line
     if line == "# echo off":
         return "ack", line

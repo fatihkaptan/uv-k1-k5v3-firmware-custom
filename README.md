@@ -157,7 +157,11 @@ the Turkish guide to building and installing Labs apps,
 `App/apps/LABS_UYGULAMA_KILAVUZU.md`. Telsiz Okulu (Labs, this fork) teaches
 amateur radio in Turkish on the radio: a quiz, Q code cards, a phonetic
 speller, the band plan of the VFO frequency and antenna lengths
-(`App/apps/telsizokulu/README.md`).
+(`App/apps/telsizokulu/README.md`). RF Mesaj (Labs, this fork) sends text
+messages between radios running it over the BK4819 FSK modem on the VFO,
+signed with a shared key and acknowledged, with an optional encrypted mode
+and a USB bridge (`tools/rfmesaj/rfkopru.py`: Telegram, automatic answers);
+see `App/apps/rfmesaj/README.md`.
 
 APRS RX receives AX.25 UI frames using Bell 202 AFSK at 1200 baud, displays
 common position formats and Mic-E data, and keeps a five-frame history. APRS TX

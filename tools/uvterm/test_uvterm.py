@@ -279,6 +279,7 @@ def main():
 
     print("chat helpers")
     check("banner", uvterm.classify("# USB Term 1.0 ready - /help")[0] == "banner")
+    check("RF Mesaj banner", uvterm.classify("# RF Mesaj 1.0 ready - TA2AAA")[0] == "banner")
     check("handshake ack", uvterm.classify("# echo off")[0] == "ack")
     check("info line", uvterm.classify("# RX 145.50000 MHz  -97 dBm") == ("info", "RX 145.50000 MHz  -97 dBm"))
     check("our echoed handshake ignored", uvterm.classify("/echo off")[0] == "echo")
