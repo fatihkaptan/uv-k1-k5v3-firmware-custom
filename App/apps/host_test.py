@@ -40,9 +40,9 @@ class Run:
     """One harness run: tx bytes, tones, STATE dicts (key=value, key=[text]),
     ROW lists, saved config, whether the script ran out (ended)."""
 
-    def __init__(self, app_dir, name, script, cfg=None, seed=None, env=None):
+    def __init__(self, app_dir, name, script, cfg=None, seed=None, env=None, assets=None):
         args = [os.path.join(app_dir, "test", "out", f"host_{name}"),
-                os.path.join(app_dir, f"{name}_assets.bin")] + ([cfg] if cfg else [])
+                assets or os.path.join(app_dir, f"{name}_assets.bin")] + ([cfg] if cfg else [])
         e = dict(os.environ, **(env or {}))
         if seed is not None:
             e["SEED"] = str(seed)

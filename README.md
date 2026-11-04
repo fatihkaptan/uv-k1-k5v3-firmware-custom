@@ -161,7 +161,11 @@ speller, the band plan of the VFO frequency and antenna lengths
 messages between radios running it over the BK4819 FSK modem on the VFO,
 signed with a shared key and acknowledged, with an optional encrypted mode
 and a USB bridge (`tools/rfmesaj/rfkopru.py`: Telegram, automatic answers);
-see `App/apps/rfmesaj/README.md`.
+see `App/apps/rfmesaj/README.md`. Muzik Kutusu (Labs, this fork) turns the
+speaker into a one-voice instrument: built-in public-domain tunes, the keypad
+as a two-octave piano with a recording kept across restarts, and MIDI over USB
+(`tools/muzik/muzik.py` plays .mid files and MIDI keyboards, records to .mid);
+see `App/apps/muzikkutusu/README.md`.
 
 APRS RX receives AX.25 UI frames using Bell 202 AFSK at 1200 baud, displays
 common position formats and Mic-E data, and keeps a five-frame history. APRS TX

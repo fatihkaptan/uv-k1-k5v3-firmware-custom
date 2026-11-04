@@ -47,8 +47,11 @@
  *   anything else    the harness's mock_cmd hook (e.g. "air <hex>")
  *
  * Output: TX <hex> per serial_write, TONE <hz> <ms>, LED <0|1>, SHOT <name>,
- * CFG <hex> (cfg_save), TXON / TXOFF (tx_set_params / tx_end), END (script
- * exhausted), QUIT (app_main returned).
+ * CFG <hex> (cfg_save), TXON / TXOFF (tx_set_params / tx_end), MUTE <0|1>
+ * <ms> (tx_mute), PREP / AUDIO / TONESOFF, END (script exhausted), QUIT
+ * (app_main returned), then SAVE <2048 hex digits> with SAVEDUMP=1 in the
+ * environment: the status line and frame buffer the app left (what the
+ * loader keeps for APP_FLAG_SAVE_SCREEN).
  *
  * Live mode (LIVE_FD=<fd> in the environment, e.g. a pty master): the serial
  * port is that descriptor and delay_ms() really sleeps, so a program on the
@@ -277,6 +280,11 @@ static uint8_t  m_tx_state(void) { return txDenied; }
 static void     m_tx_params(void) { printf("TXON\n"); }
 static void     m_tx_end(void) { printf("TXOFF\n"); }
 static void     m_boot_call(char *buf, uint8_t len) { snprintf(buf, len, "%s", bootCall); }
+/* the beep path, with the time: MUTE <0|1> <ms>, PREP, AUDIO <0|1>, TONESOFF */
+static void     m_tx_mute(bool on) { printf("MUTE %d %u\n", on, now); }
+static void     m_prepare_tone(void) { printf("PREP %u\n", now); }
+static void     m_audio_path(bool on) { printf("AUDIO %d %u\n", on, now); }
+static void     m_tones_off(void) { printf("TONESOFF %u\n", now); }
 static uint16_t m_serial_read(uint8_t port, void *buf, uint16_t len) {
     uint16_t n = 0;
     if (port != APP_SERIAL_USB) return 0;
@@ -348,10 +356,18 @@ static int mock_main(int argc, char **argv) {
     api.bk_read = m_bk_read; api.bk_write = m_bk_write;
     api.tx_state = m_tx_state; api.tx_set_params = m_tx_params; api.tx_end = m_tx_end;
     api.boot_callsign = m_boot_call;
+    api.tx_mute = m_tx_mute; api.prepare_tone = m_prepare_tone;
+    api.audio_path = m_audio_path; api.tones_off_rx = m_tones_off;
 
     script();
     app_main(&api);
     printf("QUIT\n");
+    if (getenv("SAVEDUMP")) {        /* what APP_FLAG_SAVE_SCREEN would keep */
+        printf("SAVE ");
+        for (int i = 0; i < 128; i++) printf("%02x", status[i]);
+        for (int i = 0; i < 7 * 128; i++) printf("%02x", fb[i / 128][i % 128]);
+        printf("\n");
+    }
     return 0;
 }
 
