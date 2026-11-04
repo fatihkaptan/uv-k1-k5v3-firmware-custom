@@ -33,7 +33,7 @@ def build(app_dir, name):
                            "-I", os.path.join(ROOT, "App"),
                            "-o", os.path.join(out, f"host_{name}"),
                            os.path.join(app_dir, "test", f"host_{name}.c"),
-                           os.path.join(ROOT, "App", "font.c")], cwd=app_dir)
+                           os.path.join(ROOT, "App", "font.c"), "-lm"], cwd=app_dir)
 
 
 class Run:

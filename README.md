@@ -165,7 +165,11 @@ see `App/apps/rfmesaj/README.md`. Muzik Kutusu (Labs, this fork) turns the
 speaker into a one-voice instrument: built-in public-domain tunes, the keypad
 as a two-octave piano with a recording kept across restarts, and MIDI over USB
 (`tools/muzik/muzik.py` plays .mid files and MIDI keyboards, records to .mid);
-see `App/apps/muzikkutusu/README.md`.
+see `App/apps/muzikkutusu/README.md`. Anten Lab (Labs, this fork) measures
+the radiation pattern of a directional antenna with the RSSI (REG_67, half-dB):
+step or continuous-turn modes, a polar plot with beam, front/back and -3 dB
+width, a reference overlay, CSV/SVG on the computer (`tools/antenlab`); see
+`App/apps/antenlab/README.md`.
 
 APRS RX receives AX.25 UI frames using Bell 202 AFSK at 1200 baud, displays
 common position formats and Mic-E data, and keeps a five-frame history. APRS TX

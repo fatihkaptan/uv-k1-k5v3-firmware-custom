@@ -77,6 +77,7 @@ static void mock_quit(void);
 static uint16_t (*mock_bk_read)(uint8_t reg);
 static void     (*mock_bk_write)(uint8_t reg, uint16_t v);
 static int      (*mock_cmd)(const char *cmd, const char *arg);
+static int16_t  (*mock_rssi)(void);  /* rssi_dbm(), -97 without it */
 static uint8_t  txDenied;        /* "txstate <n>": what tx_state() returns */
 static char     bootCall[12] = "TA2AAA";
 
@@ -99,10 +100,10 @@ static int      pendingUp;       /* "press": release the key at the next resume 
 static int      liveFd = -1;
 
 /* ---- display, as App/ui/helper.c draws it ---- */
-static uint8_t *row(bool st, uint8_t y) { return st ? status : fb[y / 8]; }
-static void px(bool st, uint8_t x, uint8_t y, bool fill) {
+static uint8_t *mock_row(bool st, uint8_t y) { return st ? status : fb[y / 8]; }
+static void mock_px(bool st, uint8_t x, uint8_t y, bool fill) {
     if (x >= 128 || (!st && y >= 56) || (st && y >= 8)) return;
-    uint8_t *b = &row(st, y)[x];
+    uint8_t *b = &mock_row(st, y)[x];
     if (fill) *b |= (uint8_t)(1u << (y % 8)); else *b &= (uint8_t)~(1u << (y % 8));
 }
 static void m_tiny(const char *s, uint8_t x, uint8_t y, bool st, bool fill) {
@@ -111,7 +112,7 @@ static void m_tiny(const char *s, uint8_t x, uint8_t y, bool st, bool fill) {
         for (int i = 0; i < 3; i++) {
             uint8_t p = gFont3x5[c][i];
             for (int j = 0; j < 6; j++, p >>= 1)
-                if (p & 1) px(st, (uint8_t)(x + i), (uint8_t)(y + j), fill);
+                if (p & 1) mock_px(st, (uint8_t)(x + i), (uint8_t)(y + j), fill);
         }
     }
 }
@@ -122,7 +123,7 @@ static void m_inverse(const char *s, uint8_t x, uint8_t line, bool st, bool fill
     for (uint8_t i = (uint8_t)(x - 1); i < end; i++) b[i] ^= 0x7F;
     b[end] ^= 0x3E;
 }
-static void small(const char *s, uint8_t start, uint8_t end, uint8_t line, const uint8_t *font) {
+static void mock_small(const char *s, uint8_t start, uint8_t end, uint8_t line, const uint8_t *font) {
     const size_t len = strlen(s);
     if (end > start) start = (uint8_t)(start + (((end - start) - len * 7u) + 1) / 2);
     for (size_t i = 0; i < len; i++) {
@@ -136,8 +137,8 @@ static void small(const char *s, uint8_t start, uint8_t end, uint8_t line, const
         }
     }
 }
-static void m_normal(const char *s, uint8_t a, uint8_t b, uint8_t line) { small(s, a, b, line, gFontSmallPacked); }
-static void m_bold(const char *s, uint8_t a, uint8_t b, uint8_t line) { small(s, a, b, line, gFontSmallBoldPacked); }
+static void m_normal(const char *s, uint8_t a, uint8_t b, uint8_t line) { mock_small(s, a, b, line, gFontSmallPacked); }
+static void m_bold(const char *s, uint8_t a, uint8_t b, uint8_t line) { mock_small(s, a, b, line, gFontSmallBoldPacked); }
 static void m_string(const char *s, uint8_t start, uint8_t end, uint8_t line, uint8_t width) {
     const size_t len = strlen(s);
     if (end > start) start = (uint8_t)(start + (((end - start) - len * width) + 1) / 2);
@@ -167,7 +168,7 @@ static void m_line(app_fb_t b, int16_t x1, int16_t y1, int16_t x2, int16_t y2, b
     (void)b;
     int dx = abs(x2 - x1), sx = x1 < x2 ? 1 : -1, dy = -abs(y2 - y1), sy = y1 < y2 ? 1 : -1, e = dx + dy;
     for (;;) {
-        if (x1 >= 0 && y1 >= 0) px(false, (uint8_t)x1, (uint8_t)y1, black);
+        if (x1 >= 0 && y1 >= 0) mock_px(false, (uint8_t)x1, (uint8_t)y1, black);
         if (x1 == x2 && y1 == y2) break;
         int e2 = 2 * e;
         if (e2 >= dy) { e += dy; x1 = (int16_t)(x1 + sx); }
@@ -184,13 +185,13 @@ static void m_battery(void) {     /* a plain battery outline at the right edge *
 static void m_blit(void) {}
 
 /* ---- the script ---- */
-static int keyCode(const char *s) {
+static int mock_keyCode(const char *s) {
     static const char *names[] = { "MENU", "UP", "DOWN", "EXIT", "STAR", "F", "PTT" };
     if (s[0] >= '0' && s[0] <= '9' && !s[1]) return s[0] - '0';
     for (int i = 0; i < 7; i++) if (!strcmp(s, names[i])) return APP_KEY_MENU + i;
     fprintf(stderr, "bad key %s\n", s); exit(2);
 }
-static void unescape(const char *s) {
+static void mock_unescape(const char *s) {
     while (*s) {
         uint8_t c = (uint8_t)*s++;
         if (c == '\\' && *s) {
@@ -202,7 +203,7 @@ static void unescape(const char *s) {
         rxq[rxTail++ % sizeof rxq] = c;
     }
 }
-static void shot(const char *name) {
+static void mock_shot(const char *name) {
     char path[256];
     snprintf(path, sizeof path, "test/out/%s.raw", name);
     FILE *f = fopen(path, "wb");
@@ -212,7 +213,7 @@ static void shot(const char *name) {
     fclose(f);
     printf("SHOT %s\n", name);
 }
-static void script(void) {
+static void mock_script(void) {
     char line[1024];
     while (!done && now >= resume) {
         if (pendingUp) { pendingUp = 0; key = APP_KEY_INVALID; resume = now + 60; continue; }
@@ -223,14 +224,14 @@ static void script(void) {
         if (!line[0] || line[0] == '#') continue;
         if (!strcmp(line, "wait")) resume = now + (uint32_t)atoi(arg);
         else if (!strcmp(line, "host")) host = atoi(arg);
-        else if (!strcmp(line, "rx")) unescape(arg);
+        else if (!strcmp(line, "rx")) mock_unescape(arg);
         else if (!strcmp(line, "lost")) lostEvt = 1;
         else if (!strcmp(line, "freq")) rxFreq = (uint32_t)strtoul(arg, NULL, 10);
-        else if (!strcmp(line, "down")) key = keyCode(arg);
+        else if (!strcmp(line, "down")) key = mock_keyCode(arg);
         else if (!strcmp(line, "up")) key = APP_KEY_INVALID;
-        else if (!strcmp(line, "press")) { key = keyCode(arg); resume = now + 60; pendingUp = 1; }
+        else if (!strcmp(line, "press")) { key = mock_keyCode(arg); resume = now + 60; pendingUp = 1; }
         else if (!strcmp(line, "state")) mock_state();
-        else if (!strcmp(line, "shot")) shot(arg);
+        else if (!strcmp(line, "shot")) mock_shot(arg);
         else if (!strcmp(line, "txstate")) txDenied = (uint8_t)atoi(arg);
         else if (!strcmp(line, "call")) snprintf(bootCall, sizeof bootCall, "%s", arg);
         else if (!mock_cmd || !mock_cmd(line, arg)) { fprintf(stderr, "bad command %s\n", line); exit(2); }
@@ -242,7 +243,7 @@ static uint8_t  m_get_key(void) { return (uint8_t)key; }
 static void     m_delay(uint32_t ms) {
     if (liveFd >= 0) usleep(ms * 1000u);
     now += ms;
-    script();
+    mock_script();
     if (done) mock_quit();       /* end of the script: leave */
 }
 static void     m_tone(uint16_t hz, uint16_t ms) { printf("TONE %u %u\n", hz, ms); now += ms; }
@@ -272,7 +273,7 @@ static uint64_t m_idivmod(int32_t n, int32_t d) {
     return ((uint64_t)(uint32_t)(n % d) << 32) | (uint32_t)(n / d);
 }
 static uint32_t m_freq(void) { return rxFreq; }
-static int16_t  m_rssi(void) { return -97; }
+static int16_t  m_rssi(void) { return mock_rssi ? mock_rssi() : -97; }
 static int8_t   m_nav(uint8_t k) { return k == APP_KEY_UP ? 1 : k == APP_KEY_DOWN ? -1 : 0; }
 static uint16_t m_bk_read(uint8_t r) { return mock_bk_read ? mock_bk_read(r) : 0; }
 static void     m_bk_write(uint8_t r, uint16_t v) { if (mock_bk_write) mock_bk_write(r, v); }
@@ -285,6 +286,8 @@ static void     m_tx_mute(bool on) { printf("MUTE %d %u\n", on, now); }
 static void     m_prepare_tone(void) { printf("PREP %u\n", now); }
 static void     m_audio_path(bool on) { printf("AUDIO %d %u\n", on, now); }
 static void     m_tones_off(void) { printf("TONESOFF %u\n", now); }
+static void     m_set_agc(bool on) { printf("AGC %d\n", on); }
+static void     m_set_af(uint8_t m) { printf("AF %u\n", m); }
 static uint16_t m_serial_read(uint8_t port, void *buf, uint16_t len) {
     uint16_t n = 0;
     if (port != APP_SERIAL_USB) return 0;
@@ -358,8 +361,9 @@ static int mock_main(int argc, char **argv) {
     api.boot_callsign = m_boot_call;
     api.tx_mute = m_tx_mute; api.prepare_tone = m_prepare_tone;
     api.audio_path = m_audio_path; api.tones_off_rx = m_tones_off;
+    api.set_agc = m_set_agc; api.set_af = m_set_af;
 
-    script();
+    mock_script();
     app_main(&api);
     printf("QUIT\n");
     if (getenv("SAVEDUMP")) {        /* what APP_FLAG_SAVE_SCREEN would keep */
