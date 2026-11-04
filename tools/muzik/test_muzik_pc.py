@@ -67,6 +67,9 @@ def main():
     div, ev = muzik.read_midi(open(path, "rb").read())
     m = muzik.melody(div, ev)
     check("written file reads back", m == [(0.0, 60), (0.5, 62), (0.75, 0), (1.0, 64), (2.0, 0)], m)
+    raw = open(path, "rb").read()
+    rmid = b"RIFF" + (len(raw) + 12).to_bytes(4, "little") + b"RMIDdata" + len(raw).to_bytes(4, "little") + raw
+    check("RIFF-wrapped (RMID, .rmi) read the same", muzik.read_midi(rmid) == (div, ev))
 
     class Ser:
         def __init__(self):
@@ -139,6 +142,10 @@ def gom():
           len(ev) == 15 and why.startswith("16. perde"), (len(ev), why))
     ev, why = muzik.to_song(m, 120, start=1.0, dur=1.0)
     check("--bas 1 --sure 1: the notes of that second only", [n for n, _ in ev] == [52, 53, 54, 55] and why is None, ev)
+    st = [(0.0, 60), (0.17, 0), (0.25, 62), (0.42, 0), (0.5, 64), (0.75, 0), (1.25, 65), (1.5, 0)]
+    check("staccato: a rest <= 1/16 joins the note before it, a longer one stays (--suslar keeps all)",
+          muzik.to_song(st, 120)[0] == [(60, 4), (62, 4), (64, 4), (0, 8), (65, 4)]
+          and len(muzik.to_song(st, 120, legato=False)[0]) == 7, muzik.to_song(st, 120))
     print("  " + o.getvalue().splitlines()[0])
 
 

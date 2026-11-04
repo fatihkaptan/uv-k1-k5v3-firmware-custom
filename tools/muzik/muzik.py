@@ -74,7 +74,10 @@ def _vlq(data, i):
 
 def read_midi(data):
     """(ticks per quarter, [events]): events = (tick, kind, a, b, track) with
-    kind 'on' / 'off' (a = channel, b = note) or 'tempo' (a = us per quarter)."""
+    kind 'on' / 'off' (a = channel, b = note) or 'tempo' (a = us per quarter).
+    A RIFF-wrapped file (RMID, .rmi) is unwrapped."""
+    if data[:4] == b"RIFF" and data[8:12] == b"RMID" and b"MThd" in data:
+        data = data[data.index(b"MThd"):]
     if data[:4] != b"MThd":
         raise MidiError("MIDI dosyasi degil (MThd yok)")
     hlen, fmt, ntrk, div = struct.unpack(">IHHH", data[4:14])
@@ -374,10 +377,12 @@ def length(u):
     return f"*{fr.numerator}/{fr.denominator}"
 
 
-def to_song(m, bpm, start=0.0, dur=None):
+def to_song(m, bpm, start=0.0, dur=None, legato=True):
     """A melody [(seconds, note or 0)] -> ([(note or 0, 32nds)], why it was
     cut or None). Lengths on a 1/32 grid at bpm, octaves folded into the
-    app's C3 .. C7; it stops before the 256th note, the 16th pitch or the
+    app's C3 .. C7; with legato a rest of a 1/16 or less is added to the note
+    before it (the app detaches its notes anyway: half the events for a
+    staccato file). It stops before the 256th note, the 16th pitch or the
     17th length (the app's limits for one song)."""
     q = 60.0 / bpm / 8
     cap = max(1, min(256, int(8 * bpm)))          # <= 60 s a note
@@ -399,8 +404,8 @@ def to_song(m, bpm, start=0.0, dur=None):
             n += 12
         while n > 96:
             n -= 12
-        if ev and not n and not ev[-1][0]:
-            ev[-1][1] += u                             # rests merged
+        if ev and not n and (not ev[-1][0] or (legato and u <= 2)):
+            ev[-1][1] += u                             # rests merged, short ones into the note
         else:
             ev.append([n, u])
     while ev and not ev[0][0]:
@@ -453,7 +458,7 @@ def cmd_gom(args, _ser=None):
     m = melody(div, ev, ch, args.transpoze, args.davul)
     us = next((a for _, k, a, _, _ in ev if k == "tempo"), 500000)
     bpm = args.bpm or round(60e6 / us, 1)
-    ev2, why = to_song(m, bpm, args.bas, args.sure)
+    ev2, why = to_song(m, bpm, args.bas, args.sure, not args.suslar)
     if not ev2:
         uvterm.die("dosyada gomulecek nota yok")
     title = (args.baslik or os.path.splitext(os.path.basename(args.dosya))[0]).translate(TR)
@@ -508,6 +513,7 @@ def main(argv=None):
     c.add_argument("--transpoze", type=int, default=0, help="yarim ses kaydir (-12 = bir oktav asagi)")
     c.add_argument("--kanal", type=int, help="yalnizca bu MIDI kanali (1-16)")
     c.add_argument("--davul", action="store_true", help="10. kanali (davul) da kat")
+    c.add_argument("--suslar", action="store_true", help="1/16'dan kisa suslari da koru (varsayilan: notaya katilir)")
     c.add_argument("--cikti", default=SONG_FILE, help="sarki dosyasi (varsayilan: sarkilar/kendi.txt)")
     args = ap.parse_args(argv)
     if args.cmd in ("bilgi", "gom"):

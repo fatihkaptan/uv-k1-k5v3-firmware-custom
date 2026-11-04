@@ -27,9 +27,7 @@ from fractions import Fraction
 SONGS = [
     ("segah--turku--aksak--beyaz_giyme--bolu", "Beyaz Giyme", "Segah", None, 122),
     ("nihavent--turku--nimsofyan--uskudara_gider--", "Uskudar'a Gider", "Nihavent", None, 153),
-    ("hicaz--turku--devrihindi--cayelinden_oteye--rize", "Cayelinden", "Hicaz", None, 81),
     ("hicaz--turku--yuruksemai_ii--bitliste_bes--", "Bitlis'te Bes", "Hicaz", None, 114),
-    ("hicaz--rumeliturkusu--sofyan--kirmizi_gulun--rumeli", "Kirmizi Gulun", "Hicaz", None, 151),
     ("hicaz--turku--nimsofyan--erkilet_guzeli--", "Erkilet Guzeli", "Hicaz", None, 160),
     ("neva--turku--sofyan--canakkale_icinde--", "Canakkale", "Neva", None, 153),
     ("huseyni--turku--curcuna--sari_gelin--erzurum", "Sari Gelin", "Huseyni", None, 83),

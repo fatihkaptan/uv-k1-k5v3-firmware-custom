@@ -10,6 +10,8 @@ Sürüm 2.0 iki şey getiriyor:
 - **Yayın:** menüde açılınca müzik hoparlör yerine **aktif VFO'dan
   yayınlanır**.
 - **Liste:** eski batı melodileri çıkarıldı, listede yalnızca türküler var.
+  Kendi şarkıların için yer açmak üzere Çayelinden ve Kırmızı Gülün de
+  çıkarıldı.
 
 ![Müzik Kutusu ekranları](images/muzikkutusu-ekranlar.png)
 
@@ -20,7 +22,7 @@ Sürüm 2.0 iki şey getiriyor:
 
 | | |
 |---|---|
-| **1 Şarkılar** | 11 türkü, makam perdeleriyle (gerçek koma aralıkları):<br>• **Hicaz:** Çayelinden Öteye, Bitlis'te Beş Minare, Kırmızı Gülün Alı Var, Erkilet Güzeli<br>• **Segah:** Beyaz Giyme (Bolu)<br>• **Nihavent:** Üsküdar'a Gider İken<br>• **Neva:** Çanakkale İçinde<br>• **Hüseyni:** Sarı Gelin, Hey Onbeşli, Ceddin Deden<br>• **Beyati:** Gesi Bağları<br>Seçili şarkının makamı üstteki kapsülde görünür. Çalarken ekranda nota, BPM, ilerleme ve klavye var. Nota adı makam yazımıyla verilir: `F5#3` = fa, 3 koma diyez; `B4b1` = si, 1 koma bemol. |
+| **1 Şarkılar** | 9 türkü, makam perdeleriyle (gerçek koma aralıkları):<br>• **Hicaz:** Bitlis'te Beş Minare, Erkilet Güzeli<br>• **Segah:** Beyaz Giyme (Bolu)<br>• **Nihavent:** Üsküdar'a Gider İken<br>• **Neva:** Çanakkale İçinde<br>• **Hüseyni:** Sarı Gelin, Hey Onbeşli, Ceddin Deden<br>• **Beyati:** Gesi Bağları<br>Seçili şarkının makamı üstteki kapsülde görünür. Çalarken ekranda nota, BPM, ilerleme ve klavye var. Nota adı makam yazımıyla verilir: `F5#3` = fa, 3 koma diyez; `B4b1` = si, 1 koma bemol. |
 | **2 Piyano** | Tuş takımı iki oktavlık bir klavyedir: `1`–`0` = do re mi fa sol la si do re mi. `*` sonraki notayı diyez yapar, `UP`/`DOWN` oktavı değiştirir (3–6). Ekranda nota (büyük), frekans (Hz) ve oktav görünür. |
 | **Kayıt** | Piyanoda `MENU` kaydı başlatır ve bitirir: notalar ve aradaki sessizlikler, 20 ms çözünürlük, en çok 255 olay. `F` kaydı çalar. Kayıt çıkışta saklanır. |
 | **3 Ses** | 5 seviye. Her basışta hoparlörden bir örnek nota çalar. |
@@ -73,6 +75,10 @@ python3 tools/uvterm/uvterm.py install App/apps/muzikkutusu/MuzikKutusu.app
 `gom` şöyle çalışır:
 - Melodiyi çıkarır: her an çalan en tiz nota alınır, davul kanalı atlanır.
 - Notaları 1/32'lik ızgaraya oturtur, oktavları do3–do7 aralığına katlar.
+- 1/16'dan kısa susları önceki notaya katar; uygulama notaları zaten
+  ayırdığı için staccato bir dosya yarı yarıya az yer tutar (`--suslar`
+  hepsini korur).
+- RIFF kabuklu `.rmi`/RMID dosyalarını da okur.
 - Sonucu `sarkilar/kendi.txt` dosyasına yazar. Bu dosya git'e girmez ve
   şarkıları listenin başına gelir.
 
@@ -178,8 +184,9 @@ Uygulamayı açmak için: **F + 7** → Apps → **Muzik Kutusu**.
 kaydı ekran tamponlarına yazar, yükleyici bu tamponları varlıkların son
 1024 baytına saklar.
 
-**Boyut:** kod 4064 B (4096 B overlay). Varlıklar 2912 B; bunun 1024 B'ı
-kayıt alanı, yaklaşık 900 B'ı da kendi şarkıların için boş.
+**Boyut:** kod 4068 B (4096 B overlay). Varlıklar 2677 B; bunun 1024 B'ı
+kayıt alanı, yaklaşık 1160 B'ı da kendi şarkıların için boş. Bu yer, tam
+uzunlukta (255 notalık) dört beş şarkıya yeter.
 
 ## Derleme ve testler
 
@@ -192,7 +199,7 @@ python3 App/apps/muzikkutusu/test/test_muzik.py
 ```
 
 Test, çalınan notaları BK4819 yazmalarından (REG_71 = perde) ve susturucu
-anahtarlamasından (ms) yeniden kurar. 39 kontrol var:
+anahtarlamasından (ms) yeniden kurar. 37 kontrol var:
 - İlk üç türkünün her notası, perde ve ±15 ms zamanlamayla; diğerleri
   sırayla.
 - Tempo, piyano, kayıt, yeniden başlatmadan sonra kaydın geri gelmesi,
