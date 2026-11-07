@@ -182,7 +182,8 @@ everything written is restored at exit) and scripts them over USB
 `App/apps/bklab/README.md`. Mors Okur (Labs, this fork) decodes Morse heard by the
 radio's own microphone (a whistle, an oscillator, a speaker) from the
 BK4819 voice amplitude (REG_64) with the mic ADC on and the RF section off:
-adaptive threshold and speed, Turkish letters, text also on USB; see
+adaptive threshold, the speed set by hand (automatic optional), Turkish
+letters, text also on USB; see
 `App/apps/morsokur/README.md`.
 
 APRS RX receives AX.25 UI frames using Bell 202 AFSK at 1200 baud, displays

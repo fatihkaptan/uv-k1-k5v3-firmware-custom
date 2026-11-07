@@ -8,7 +8,7 @@
  * steady sound from a to b ms). Every BK4819 write is printed as
  * BK <reg> <value>.
  *
- * "state" prints STATE down=N dot=N sens=N mode=N on=N peak=N lvl=N, then
+ * "state" prints STATE down=N dot=N sens=N mode=N wpm=N oto=N on=N peak=N lvl=N, then
  * TEXT <the five rows, joined by |> and PAT <the pattern being keyed>. */
 
 #include <stdio.h>
@@ -62,8 +62,8 @@ static uint16_t bk_rd(uint8_t r) {
 static void bk_wr(uint8_t r, uint16_t v) { printf("BK %02x %04x %u\n", r, v, now); }
 
 static void mock_state(void) {
-    printf("STATE down=%u dot=%u sens=%u mode=%u on=%u peak=%u lvl=%u\n", g.down, g.dot, g.cfg.sens, g.cfg.mode,
-           g.on, g.peak, g.lvl);
+    printf("STATE down=%u dot=%u sens=%u mode=%u wpm=%u oto=%u on=%u peak=%u lvl=%u\n", g.down, g.dot, g.cfg.sens,
+           g.cfg.mode, g.cfg.wpm, g.cfg.oto, g.on, g.peak, g.lvl);
     printf("TEXT ");
     for (unsigned r = 0; r < ROWS; r++) printf("%s%s", g.rows[r], r + 1u < ROWS ? "|" : "\n");
     printf("PAT %s\n", g.pat);

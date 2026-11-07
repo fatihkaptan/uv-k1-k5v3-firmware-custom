@@ -1,4 +1,4 @@
-# Mors Okur 1.0 — telsizin mikrofonundan mors çözücü
+# Mors Okur 1.1 — telsizin mikrofonundan mors çözücü
 
 **Mors Okur**, telsizin **kendi mikrofonunun** duyduğu morsu çözüp ekrana
 yazar. Kaynak ne olursa olsun çalışır: ıslık, düdük, mors osilatörü,
@@ -21,7 +21,8 @@ yayınlamaz**: verici devresi kapalıdır.
   harfle gösterilir, çünkü yazı tipinde aksan yok: `c` = Ç, `g` = Ğ,
   `o` = Ö, `s` = Ş, `u` = Ü. Tanınmayan desen `_` olur.
 - **Alt satırlar:**
-  - O an girilen desen (`-.-.`) ve hız (`18 WPM`).
+  - O an girilen desen (`-.-.`) ve hız: `18 WPM` (elle ayarlı) ya da
+    `18 OTO` (otomatik modda kestirilen).
   - **Seviye çubuğu:** mikrofonun duyduğu, en yüksek işarete göre ölçekli.
     Dikey çizgi işaret eşiğidir; çubuk çizgiyi geçince işaret başlar.
   - Sağ altta hassasiyet (`H5`) ve kaynak (`D`/`R`, aşağıda).
@@ -30,8 +31,9 @@ yayınlamaz**: verici devresi kapalıdır.
 
 | Tuş | İşlev |
 |---|---|
-| `UP` / `DOWN` | Hassasiyet 1–9 (varsayılan 5). Gürültülü odada düşür, uzak ve zayıf seste artır |
-| `*` | Hızı sıfırla (15 WPM). Çok farklı hızda biri başlarsa |
+| `UP` / `DOWN` | Hız, 5–40 WPM (varsayılan 15). Gönderenin hızına ayarlayın |
+| `1`–`9` | Hassasiyet (varsayılan 5). Gürültülü odada düşür, uzak ve zayıf seste artır |
+| `F` | Otomatik hız aç/kapa (varsayılan kapalı; açıkken `OTO` yazar) |
 | `MENU` | Metni temizle |
 | `0` | Mikrofon kaynağı `D` / `R` (aşağıda) |
 | `EXIT` | Çıkış (alıcı eski haline döner) |
@@ -64,12 +66,18 @@ değerdir.
   seviyesi olarak alınır.
 
 **Nokta, çizgi, hız:**
-- Son 8 işaretin en kısası ile en uzunu arasında 2 kat fark varsa sınır
-  ikisinin ortasıdır, yoksa iki noktadır.
-- Nokta süresi her işaretle güncellenir; iki kattan fazla saparsa
-  (yeni hız) yolun dörtte üçünü bir anda gider. WPM = 1200 / nokta (ms).
+- Hız elle ayarlanır: nokta = 1200 / WPM ms. 2 noktadan uzun işaret
+  çizgidir.
 - 2 nokta sessizlik harfi, 5 nokta kelimeyi bitirir. Bunlar 1/3 ve 3/7
   boşluklarının tam ortalarıdır.
+- Eşikler sabit olduğu için gönderen ayardan yaklaşık %30 farklı hızda
+  da okunur. 15 WPM ayarında 10–19 WPM arası, temiz anahtarlamayla 21'e
+  kadar.
+- **Otomatik mod (`F`):** son 8 işaretin en kısası ile en uzunu arasında 2
+  kat fark varsa nokta/çizgi sınırı ikisinin ortasıdır, yoksa iki noktadır.
+  Nokta süresi her işaretle güncellenir; iki kattan fazla saparsa yolun
+  dörtte üçünü bir anda gider. 1.0'da varsayılan buydu; gerçek telsizde
+  kötü çalıştığı bildirildiği için 1.1'de isteğe bağlı oldu.
 
 **USB:** bağlanınca `# Mors Okur 1.0 ready` gelir, ardından çözülen her harf
 geldiği anda. Uzun bir duraklamadan sonra satır sonu gönderilir. `/echo off`
@@ -80,7 +88,8 @@ yanıtlanır, yani `uvterm.py` ile kullanılabilir.
 - Mikrofon telsizin ön yüzündedir. Ses kaynağını 10–30 cm'ye getirin.
 - En iyi sonuç 500–1000 Hz civarında temiz bir tonla alınır: osilatör ya da
   bilgisayarda bir mors sitesi. Islıkla da çalışır.
-- Önce `VVV` ya da birkaç harf gönderin; hız 1–2 harfte oturur.
+- Gönderenin hızını bilmiyorsanız `F` ile otomatik modu deneyin. Okunan
+  hızı görünce `F` ile manuele dönüp `UP`/`DOWN` ile o hıza ayarlayın.
 - Çubuk kımıldıyor ama `TON` yanmıyorsa hassasiyeti artırın. Gürültüden
   `E T` gibi harfler çıkıyorsa azaltın.
 
@@ -112,8 +121,11 @@ python3 App/apps/morsokur/test/test_morsokur.py
 
 Test, uygulamayı sahte bir mikrofonla çalıştırır: REG_64, verilen mors
 desenini zamanda izler; gürültü, el titremesi ve kenar gecikmesi eklenebilir
-(`test/host_morsokur.c`). 17 kontrol var:
-- 15, 25 (15'ten başlayıp uyum sağlayarak) ve 6 WPM.
+(`test/host_morsokur.c`). 21 kontrol var:
+- Varsayılan manuel 15 WPM; `UP` ile 25, `DOWN` ile 6 WPM, ilk kelimeden
+  itibaren.
+- 15 ayarında 11 ve 19 WPM gönderen.
+- Otomatik modda 15'ten 25'e uyum.
 - ±%20 el titremesi.
 - Sessizliğin yalnızca 2,1 katı bir ton ve ±60 gürültü.
 - Türkçe harfler.
@@ -122,17 +134,17 @@ desenini zamanda izler; gürültü, el titremesi ve kenar gecikmesi eklenebilir
 - Satır kaydırma.
 - Register yazmalarında RF bölümünün hiç açılmaması.
 - `0` kaynağı ve REG_31'in geri yüklenmesi.
-- Hassasiyet tuşları, `MENU`, USB.
+- Hız sınırları (5–40), hassasiyet tuşları, ayarların kaydı, `MENU`, USB.
 
-Ayrıca bir tarama yapıldı: hız × koşul, 7 kelimelik bir mesaj.
-- **5–20 WPM:** her koşulda (anahtarlayıcı, ±%20 el, zayıf ton, 15 ms
-  gecikme, zayıf ton + el) 7/7 kelime doğru.
-- **25–40 WPM:** 6/7. Yalnızca ilk kelime, 15 WPM'den uyum sağlanırken
-  kayboluyor.
+Ayrıca manuel modun toleransı tarandı: ayar 15 WPM, 7 kelimelik bir mesaj.
+- **10–19 WPM gönderen:** temiz anahtarlamayla da, ±%10 el titremesi ve
+  20 ms gecikmeyle de 7/7 kelime doğru.
+- **20–21 WPM:** temiz anahtarlamayla doğru.
+- **9 WPM'in altı ve 22 WPM'in üstü:** bozuluyor; hızı ayarlamak gerekir.
 
 **Gerçek telsizde henüz denenmedi.** REG_64'ün telsizde bu iki kaynakta da
 mikrofonu ölçtüğü firmware'in mikrofon çubuğu ve VOX koduna dayanan bir
 çıkarım. İlk denemede seviye çubuğuna bakın: ses yapınca oynamıyorsa `0` ile
 kaynağı değiştirin.
 
-Kod 2476 B (4096 B overlay).
+Kod 2520 B (4096 B overlay).

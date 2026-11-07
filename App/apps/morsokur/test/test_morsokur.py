@@ -36,11 +36,14 @@ def length(text, wpm):
     return n * dot + pattern(text).count(" ") * 2 * dot + pattern(text).count("/") * 6 * dot
 
 
-def Run(text, wpm=15, tail=1500, extra=(), **env):
+def Run(text, wpm=15, tail=1500, extra=(), pre=(), **env):
+    """The sender keys `text` at `wpm`; `pre` are the keys pressed first."""
+    if pre:
+        env.setdefault("START", 400 + 80 * len(pre))
     e = {"PATTERN": pattern(text), "WPM": str(wpm)}
     e.update({k: str(v) for k, v in env.items()})
     wait = int(env.get("START", 500)) + length(text, wpm) + tail
-    r = ht.Run(APP, NAME, script("wait 400", f"wait {wait}", "state", *extra), env=e)
+    r = ht.Run(APP, NAME, script("wait 50", *pre, "wait 350", f"wait {wait}", "state", *extra), env=e)
     r.text = next((l[5:] for l in reversed(r.lines) if l.startswith("TEXT ")), "")
     r.flat = r.text.replace("|", "").strip()
     r.writes = [(int(l.split()[1], 16), int(l.split()[2], 16)) for l in r.lines if l.startswith("BK ")]
@@ -52,14 +55,22 @@ def tests():
     msg = "CQ CQ DE TA2ABC K"
     r = Run(msg)
     check(f"15 WPM keyer: '{msg}'", r.flat == msg, r.flat)
-    check("speed shown: 15 WPM (dot 80 ms)", abs(1200 / r.last["dot"] - 15) <= 1.5, r.last["dot"])
-    r = Run("PARIS PARIS PARIS PARIS", wpm=25)
-    check("25 WPM from a 15 WPM start: adapts within the first word", r.flat.endswith("PARIS PARIS PARIS"),
-          r.flat)
-    check("  and shows ~25 WPM", abs(1200 / r.last["dot"] - 25) <= 3, r.last["dot"])
-    r = Run("TEST DE TA2ABC", wpm=6, tail=3000)
-    check("6 WPM, slow", r.flat == "TEST DE TA2ABC", r.flat)
-    r = Run("BOLU 73 SK", wpm=18, HAND=20)
+    check("manual 15 WPM by default (dot 80 ms), not automatic", r.last["wpm"] == 15 and r.last["dot"] == 80
+          and r.last["oto"] == 0, r.last)
+    r = Run("PARIS PARIS PARIS PARIS", wpm=25, pre=press("UP") * 10)
+    check("UP x10: 25 WPM, read from the first word on", r.flat == "PARIS PARIS PARIS PARIS"
+          and r.last["wpm"] == 25 and r.last["dot"] == 48, (r.flat, r.last))
+    r = Run("TEST DE TA2ABC", wpm=6, tail=3000, pre=press("DOWN") * 9)
+    check("DOWN x9: 6 WPM, slow", r.flat == "TEST DE TA2ABC" and r.last["wpm"] == 6, r.flat)
+    for w in (11, 19):
+        r = Run("CQ DE TA2ABC K", wpm=w)
+        check(f"set to 15, a sender at {w} WPM ({round((w - 15) / 15 * 100):+d} %) still read",
+              r.flat == "CQ DE TA2ABC K" and r.last["dot"] == 80, r.flat)
+    r = Run("PARIS PARIS PARIS PARIS", wpm=25, pre=press("F"))
+    check("F: automatic speed, from 15 to 25 WPM within the first word, shown as OTO",
+          r.flat.endswith("PARIS PARIS PARIS") and r.last["oto"] == 1 and abs(1200 / r.last["dot"] - 25) <= 3,
+          (r.flat, r.last))
+    r = Run("BOLU 73 SK", wpm=18, HAND=20, pre=press("UP") * 3)
     check("hand keying, every element and gap +-20 %", r.flat == "BOLU 73 SK".replace("SK", "SK"), r.flat)
     r = Run("QRV 145.500", wpm=15, LEVEL=420, FLOOR=200, NOISE=60)
     check("weak: tone only 2.1 x the quiet level, noise +-60", r.flat == "QRV 145.500", r.flat)
@@ -69,7 +80,7 @@ def tests():
     check("a 2.5 s steady sound is not Morse: nothing written, then 'HI HI'", r.flat == "HI HI", r.flat)
     r = Run("", tail=10000, NOISE=80)
     check("10 s of room noise (+-80) alone: no characters", r.flat == "", r.flat)
-    r = Run("ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ", wpm=20)
+    r = Run("ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ", wpm=20, pre=press("UP") * 5)
     check("long text: rows scroll, the last rows kept",
           r.text.split("|")[-1].strip().endswith("STUVWXYZ") and "0123456789" in r.text.replace("|", ""), r.text)
 
@@ -84,9 +95,14 @@ def tests():
     check("0: the receiver kept, mic ADC added (0xBFF5), VOX detector on; EXIT puts REG_31 back",
           (0x30, 0xBFF5) in w and (0x31, 0x1234 | 4) in w and w[-1] == (0x31, 0x1234)
           and any(l.startswith("TONESOFF") for l in r.lines), w[-4:])
-    r = Run("E", extra=(*press("UP") * 6, "state", *press("DOWN") * 12, "state", "press EXIT", "wait 50"))
-    check("UP/DOWN: sensitivity 1 .. 9, saved", r.states[1]["sens"] == 9 and r.states[2]["sens"] == 1
-          and r.cfg is not None and r.cfg[1] == 1, (r.states, r.cfg))
+    r = Run("E", extra=(*press("UP") * 30, "state", *press("DOWN") * 40, "state", "press 9", "state", "press 2",
+                        "press F", "wait 50", "state", "press EXIT", "wait 50"))
+    st = r.states
+    check("UP/DOWN: 5 .. 40 WPM", st[1]["wpm"] == 40 and st[1]["dot"] == 30 and st[2]["wpm"] == 5
+          and st[2]["dot"] == 240, st[1:3])
+    check("1-9: sensitivity", st[3]["sens"] == 9 and st[4]["sens"] == 2, st[3:5])
+    check("speed, sensitivity and the mode saved", r.cfg is not None and r.cfg[1] == 2 and r.cfg[3] == 5
+          and r.cfg[4] == 1, r.cfg)
     r = Run("TEST", extra=("press MENU", "wait 50", "state"))
     check("MENU clears the text", r.states[0] and not r.text.replace("|", "").strip(), r.text)
     e = {"PATTERN": pattern("CQ DE TA2ABC"), "WPM": "15"}
@@ -94,12 +110,12 @@ def tests():
                env=e)
     out = r.tx.decode()
     check("USB: banner, /echo off answered, the text as decoded, a new line after a pause",
-          out.startswith("# Mors Okur 1.0 ready\r\n# echo off\r\n") and "CQ DE TA2ABC \r\n" in out, out)
+          out.startswith("# Mors Okur 1.1 ready\r\n# echo off\r\n") and "CQ DE TA2ABC \r\n" in out, out)
 
 
 def mockups():
-    e = {"PATTERN": pattern("CQ CQ DE TA2ABC TA2ABC K"), "WPM": "18"}
-    ht.Run(APP, NAME, script("wait 400", "wait 7000", "shot dinliyor"), env=e)
+    e = {"PATTERN": pattern("CQ CQ DE TA2ABC TA2ABC K"), "WPM": "18", "START": "700"}
+    ht.Run(APP, NAME, script("wait 50", *press("UP") * 3, "wait 400", "wait 7000", "shot dinliyor"), env=e)
     ht.Run(APP, NAME, script("wait 300", "shot bos"), env={"PATTERN": ""})
     for name in ("dinliyor", "bos"):
         path = ht.png(APP, name)

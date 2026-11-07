@@ -32,10 +32,12 @@
  *     margin: (14 - sensitivity) / 2 spreads, or (10 - sensitivity) / 16 of
  *     the quiet level; it ends halfway back (hysteresis); DEB_N equal
  *     decisions make an edge;
- *   - dot or dash: midway between the shortest and the longest of the last
- *     NHIST marks when both kinds are there, else two dots; the dot length
- *     follows every mark (most of the way at once when it is more than twice
- *     off), so the speed adapts by itself (WPM = 1200 / dot);
+ *   - the speed is set by hand (UP/DOWN, 5-40 WPM): a dot lasts 1200 / WPM
+ *     ms, a mark longer than two dots is a dash. In the automatic mode (F)
+ *     the boundary is midway between the shortest and the longest of the
+ *     last NHIST marks when both kinds are there, else two dots, and the dot
+ *     length follows every mark (most of the way at once when it is more
+ *     than twice off);
  *   - 2 dots of silence end a letter (midway between 1 and 3), 5 a word
  *     (midway between 3 and 7).
  * A mark longer than MARK_MAX is a steady sound, not Morse: the quiet level
@@ -62,8 +64,9 @@
 #define VOX_ON     0x0004u   /* REG_31 bit 2: the VOX detector */
 #define POLL_MS    2u
 #define DEB_N      3u        /* equal decisions for an edge */
-#define DOT0       80u       /* 15 WPM to start with */
-#define DOT_MIN    24u       /* 50 WPM */
+#define WPM_MIN    5u
+#define WPM_MAX    40u
+#define DOT_MIN    24u       /* automatic mode: 50 WPM */
 #define DOT_MAX    300u      /* 4 WPM */
 #define GLITCH_MS  12u
 #define MARK_MAX   2000u
@@ -73,10 +76,10 @@
 #define COLS       18u
 #define ROWS       5u
 #define BAR_W      100u
-#define CFG_MAGIC  0x4Fu
+#define CFG_MAGIC  0x50u
 #define SENS_MAX   9u
 
-typedef struct { uint8_t magic, sens, mode, pad; } cfg_t;
+typedef struct { uint8_t magic, sens, mode, wpm, oto; } cfg_t;
 
 static struct {
     const app_api_t *A;
@@ -169,13 +172,15 @@ static void mark(uint16_t d) {
         if (h < mn) mn = h;
         if (h > mx) mx = h;
     }
-    if (mx >= 2u * mn) b = (uint16_t)((mn + mx) / 2u);   /* dots and dashes both seen */
+    if (g.cfg.oto && mx >= 2u * mn) b = (uint16_t)((mn + mx) / 2u);   /* dots and dashes both seen */
     const bool dash = d > b;
     TRACE("MARK %u %c b=%u dot=%u\n", d, dash ? '-' : '.', b, g.dot);
-    const uint32_t e = dash ? d / 3u : d;
-    /* far off (a new speed): three quarters of the way at once, else a quarter */
-    uint32_t dot = e > 2u * g.dot || 2u * e < g.dot ? (g.dot + 3u * e + 2u) / 4u : (3u * g.dot + e + 2u) / 4u;
-    g.dot = (uint16_t)(dot < DOT_MIN ? DOT_MIN : dot > DOT_MAX ? DOT_MAX : dot);
+    if (g.cfg.oto) {
+        const uint32_t e = dash ? d / 3u : d;
+        /* far off (a new speed): three quarters of the way at once, else a quarter */
+        uint32_t dot = e > 2u * g.dot || 2u * e < g.dot ? (g.dot + 3u * e + 2u) / 4u : (3u * g.dot + e + 2u) / 4u;
+        g.dot = (uint16_t)(dot < DOT_MIN ? DOT_MIN : dot > DOT_MAX ? DOT_MAX : dot);
+    }
     if (g.depth < 7u) {
         g.pat[g.depth++] = dash ? '-' : '.';
         g.pat[g.depth] = '\0';
@@ -231,15 +236,17 @@ static void gaps(void) {
 }
 
 /* ---- keys ---- */
+static void setSpeed(void) { g.dot = (uint16_t)(1200u / g.cfg.wpm); memset(g.hist, 0, sizeof g.hist); }
 static void onPress(uint8_t k) {
     g.dirty = true;
+    if (k >= APP_KEY_1 && k <= APP_KEY_9) { g.cfg.sens = k; return; }   /* APP_KEY_n == n */
     switch (k) {
-    case APP_KEY_UP:   if (g.cfg.sens < SENS_MAX) g.cfg.sens++; break;
-    case APP_KEY_DOWN: if (g.cfg.sens > 1u) g.cfg.sens--; break;
+    case APP_KEY_UP:   if (g.cfg.wpm < WPM_MAX) g.cfg.wpm++; setSpeed(); break;
+    case APP_KEY_DOWN: if (g.cfg.wpm > WPM_MIN) g.cfg.wpm--; setSpeed(); break;
+    case APP_KEY_F:    g.cfg.oto ^= 1u; setSpeed(); break;
     case APP_KEY_MENU:                          /* clear the text */
         memset(g.rows, 0, sizeof g.rows); g.col = 0; clearSym(); send("\r\n", 2);
         break;
-    case APP_KEY_STAR: g.dot = DOT0; memset(g.hist, 0, sizeof g.hist); break;
     case APP_KEY_0:    g.cfg.mode ^= 1u; mic(); break;
     case APP_KEY_EXIT: g.quit = true; break;
     default: break;
@@ -279,7 +286,7 @@ static void draw(void) {
         for (uint8_t i = 0; i < 4u; i++)
             A->print_tiny(T(t, (uint16_t)(T_HELP + i * T_HELP_STRIDE)), 0, (uint8_t)(4u + 9u * i), false, true);
     A->print_normal(g.pat, 0, 0, 5);
-    put(putu(s, 1200u / g.dot), T(t, T_WPM));
+    put(putu(s, 1200u / g.dot), T(t, g.cfg.oto ? T_OTO : T_WPM));
     A->print_normal(s, 80, 0, 5);
     /* the level: a bar scaled to the loudest mark, the threshold a tick */
     uint32_t fs = (uint32_t)(g.peak > g.on ? g.peak : g.on) * 5u / 4u;
@@ -303,10 +310,11 @@ void app_main(const app_api_t *api) {
     g.A = api;
     g.raw = g.key = APP_KEY_INVALID;
     api->cfg_load((uint8_t *)&g.cfg, sizeof g.cfg);
-    if (g.cfg.magic != CFG_MAGIC || !g.cfg.sens || g.cfg.sens > SENS_MAX || g.cfg.mode > 1u) {
-        g.cfg.magic = CFG_MAGIC; g.cfg.sens = 5; g.cfg.mode = 0;
+    if (g.cfg.magic != CFG_MAGIC || !g.cfg.sens || g.cfg.sens > SENS_MAX || g.cfg.mode > 1u
+        || g.cfg.wpm < WPM_MIN || g.cfg.wpm > WPM_MAX || g.cfg.oto > 1u) {
+        g.cfg.magic = CFG_MAGIC; g.cfg.sens = 5; g.cfg.mode = 0; g.cfg.wpm = 15; g.cfg.oto = 0;
     }
-    g.dot = DOT0;
+    setSpeed();
     clearSym();
     g.reg31 = api->bk_read(REG_31);
     mic();

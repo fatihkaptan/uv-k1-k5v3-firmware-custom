@@ -14,14 +14,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
 from app_assets import Assets
 
-VER = os.environ.get("APP_VER", "1.0")
+VER = os.environ.get("APP_VER", "1.1")
 a = Assets("MORSOKUR")
 
 a.text("T_TITLE", "MORS OKUR")
 a.text("T_TON", "TON")
 a.text("T_WPM", " WPM")
-a.table("T_HELP", ["Mikrofona mors calin:", "duduk, osilator, hoparlor", "UP/DN hassasiyet  * hiz",
-                   "MENU sil  0 kaynak  EXIT"])
+a.text("T_OTO", " OTO")
+a.table("T_HELP", ["Mikrofona mors calin:", "duduk, osilator, hoparlor", "UP/DN hiz  1-9 hassasiyet",
+                   "F oto hiz  MENU sil  0 kaynak"])
 a.text("T_BANNER", f"# Mors Okur {VER} ready")
 a.text("T_ECHO", "# echo off")
 
